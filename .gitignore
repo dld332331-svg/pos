@@ -1,0 +1,76 @@
+# ─── .NET / C# ───────────────────────────────────────────────
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.so
+*.dylib
+*.nupkg
+*.snk
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sdf
+*.ipdb
+*.rsuser
+*.vshost.*
+
+# Visual Studio
+.vs/
+*.csproj.user
+*.csproj.Core.props
+*.dbmdl
+*.jfm
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+
+# JetBrains Rider / ReSharper
+.idea/
+*.DotSettings.user
+_ReSharper*/
+
+# NuGet
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Test Results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# ─── Coverlet coverage reports ──────────────────────────────
+coverage.json
+coverage_fresh.json
+coverage.xml
+
+# ─── OS files ───────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.swo
+~$*
+
+# ─── Environment / Secrets ──────────────────────────────────
+appsettings.Development.json
+appsettings.Local.json
+.env
+*.pfx
+
+# ─── Release deliverables (QA audit, coverage, archive) ─────
+release/
+
+# ─── Obsolete / renamed files ──────────────────────────────
+_nul_file
+
+# ─── Build artifacts ────────────────────────────────────────
+*.nupkg
+*.log
+output/
+publish/
+artifacts/

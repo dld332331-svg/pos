@@ -1,0 +1,42 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Common language settings -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- ================================================================== -->
+  <!-- Stricter Code Analysis Rules (Section 4.2 - Quality Assurance)      -->
+  <!-- ================================================================== -->
+  <PropertyGroup>
+    <!-- Use the latest .NET 10 analyzer ruleset -->
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- Enable code style (IDE*) rules during build, not just in IDE -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Promote all warnings to build errors — zero-tolerance policy -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Promote code analysis (CA*) warnings to errors specifically -->
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+
+    <!-- Generate documentation file automatically for consistency checks -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Do not treat missing XML comment on public members as error or warning
+         unless explicitly added (allows gradual documentation improvement) -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- ================================================================== -->
+  <!-- NuGet Audit: Fail build on known vulnerabilities                    -->
+  <!-- ================================================================== -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+  </PropertyGroup>
+
+</Project>

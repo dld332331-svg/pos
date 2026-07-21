@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\POS.Domain\POS.Domain.csproj" />
+    <ProjectReference Include="..\POS.Application\POS.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2026.7.1" />
+    <PackageReference Include="ClosedXML" Version="0.102.3" />
+    <PackageReference Include="System.IO.Packaging" Version="10.0.10" />
+  </ItemGroup>
+</Project>

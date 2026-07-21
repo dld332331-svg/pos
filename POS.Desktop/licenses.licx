@@ -1,0 +1,11 @@
+DevExpress.XtraEditors.XtraForm, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraEditors.PanelControl, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraEditors.SimpleButton, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraEditors.LabelControl, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.LookAndFeel.DefaultLookAndFeel, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraGrid.GridControl, DevExpress.XtraGrid.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraGrid.Views.Grid.GridView, DevExpress.XtraGrid.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraGrid.Columns.GridColumn, DevExpress.XtraGrid.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.XtraEditors.Repository.RepositoryItemButtonEdit, DevExpress.XtraEditors.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.Skins.SkinManager, DevExpress.Skins.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a
+DevExpress.UserSkins.BonusSkins, DevExpress.UserSkins.v25.2, Version=25.2.8.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a

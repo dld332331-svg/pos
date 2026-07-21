@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, 'release/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Debug)
+        run: dotnet build --no-restore --configuration Debug
+
+      - name: Build (Release)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run unit + integration tests (Release)
+        run: dotnet test --no-build --configuration Release --filter Category!=UITest --verbosity normal
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/TestResults/**/*.trx
+            **/TestResults/**/*.xml
+
+  # Optional: Code coverage analysis (requires Coverlet)
+  # coverage:
+  #   runs-on: windows-latest
+  #   needs: build-and-test
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-dotnet@v4
+  #       with:
+  #         dotnet-version: '10.0.x'
+  #     - run: dotnet tool install --global coverlet.console
+  #     - run: dotnet build --configuration Release
+  #     - run: >
+  #         coverlet POS.Tests/bin/Release/net10.0-windows/POS.Tests.dll
+  #         --target "dotnet" --targetargs "test --no-build --configuration Release --filter Category!=UITest"
+  #         --threshold 0 --format json --format cobertura
+  #         --include "[POS.Application]*" "[POS.Domain]*"
+  #         --output coverage
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: coverage-report
+  #         path: coverage.*
+
+  # Optional: Static analysis
+  # lint:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-dotnet@v4
+  #       with:
+  #         dotnet-version: '10.0.x'
+  #     - run: dotnet restore
+  #     - run: dotnet build --no-restore --warningsaserrors
+  #     - run: dotnet format --verify-no-changes --verbosity diagnostic

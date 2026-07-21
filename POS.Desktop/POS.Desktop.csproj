@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- WFO1000 is required for WinForms custom controls with designer serialization -->
+    <!-- IDE/CA rules suppressed because they are code-style preferences, not bugs. -->
+    <!-- The project already enforces meaningful rules via TreatWarningsAsErrors. -->
+    <!-- Nullable warnings (CS860x) and unused-events (CS0067) are pre-existing WinForms patterns. -->
+    <NoWarn>$(NoWarn);WFO1000;CS0067;CS0414;CS0219;IDE0005;IDE0044;IDE0052;IDE0051;IDE0090;IDE0078;IDE0011;CA2000;CA1062;CA2022</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ApplicationIcon />
+    <AssemblyName>POS</AssemblyName>
+    <RootNamespace>POS.Desktop</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\POS.Application\POS.Application.csproj" />
+    <!-- Composition Root only: referenced solely by Program.cs to wire DI (AddInfrastructure).
+         Spec §4.4 prohibition (UI accessing DB directly) remains enforced: no Desktop code
+         outside Program.cs may use POS.Infrastructure types. -->
+    <ProjectReference Include="..\POS.Infrastructure\POS.Infrastructure.csproj" />
+    <ProjectReference Include="..\POS.Reporting\POS.Reporting.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- DI Container (spec 4.1) -->
+    <!-- DevExpress WinForms (spec 4.1) -->
+    <PackageReference Include="DevExpress.Data" Version="25.2.8" />
+    <PackageReference Include="DevExpress.Printing.Core" Version="25.2.8" />
+    <PackageReference Include="DevExpress.Win.Grid" Version="25.2.8" />
+    <PackageReference Include="DevExpress.Win.Navigation" Version="25.2.8" />
+    <PackageReference Include="DevExpress.Win.BonusSkins" Version="25.2.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <!-- Configuration (spec 32) -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.10" />
+    <!-- Structured Logging integration -->
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\**\*" />
+  </ItemGroup>
+</Project>

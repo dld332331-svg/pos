@@ -1,0 +1,174 @@
+# ==============================================================================
+# POS System .editorconfig
+# Strict code analysis rules for .NET 10 / C# 13
+# ==============================================================================
+
+root = true
+
+# ==============================================================================
+# All files
+# ==============================================================================
+[*]
+indent_style = space
+indent_size = 4
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,xml,config,json,props,targets}]
+indent_size = 4
+
+# ==============================================================================
+# C# source files
+# ==============================================================================
+[*.cs]
+
+# --- CS (Compiler) Rules ---
+# CS1591: Missing XML comment on publicly visible type/member — let's keep it a
+#         suggestion (not warning) via the NoWarn in Directory.Build.props
+dotnet_diagnostic.CS1591.severity = silent
+
+# CS8618: Non-nullable field is uninitialized (e.g. navigation properties)
+dotnet_diagnostic.CS8618.severity = silent
+
+# --- IDE (Code Style) Rules ---
+
+# IDE0005: Remove unnecessary using directives — enforce as error
+dotnet_diagnostic.IDE0005.severity = error
+
+# IDE0044: Add readonly modifier — enforce for fields that can be readonly
+dotnet_diagnostic.IDE0044.severity = warning
+
+# IDE0051: Remove unused private members
+dotnet_diagnostic.IDE0051.severity = warning
+
+# IDE0052: Remove unread private fields
+dotnet_diagnostic.IDE0052.severity = warning
+
+# IDE0074: Use compound assignment (e.g., x += 1 instead of x = x + 1)
+dotnet_diagnostic.IDE0074.severity = suggestion
+
+# IDE0028: Simplify collection initialization (use [] or {} instead of new List<T>)
+dotnet_diagnostic.IDE0028.severity = suggestion
+
+# IDE0300: Use collection expression (C# 12+ collection expressions)
+dotnet_diagnostic.IDE0300.severity = suggestion
+
+# IDE0200: Remove unnecessary lambda expression
+dotnet_diagnostic.IDE0200.severity = suggestion
+
+# IDE0161: File-scoped namespace — already used throughout the project
+csharp_style_namespace_declarations = file_scoped:warning
+
+# IDE0011: Add braces (always use braces)
+csharp_prefer_braces = when_multiline:warning
+
+# IDE0078: Use pattern matching (already in use)
+csharp_style_prefer_pattern_matching = true:warning
+
+# IDE0090: Use 'new(...)' instead of 'new T(...)' (target-typed new)
+csharp_style_implicit_object_creation_when_type_is_apparent = true:warning
+
+# IDE1006: Naming rule violation
+dotnet_diagnostic.IDE1006.severity = warning
+
+# --- CA (Code Quality) Rules ---
+
+# CA1062: Validate arguments of public methods — enforce as error
+dotnet_diagnostic.CA1062.severity = error
+
+# CA2000: Dispose objects before losing scope (critical for IDisposable resources)
+dotnet_diagnostic.CA2000.severity = error
+
+# CA1416: Validate platform compatibility (suppress for WinForms-specific code)
+# WinForms projects already target windows-specific TFM
+dotnet_diagnostic.CA1416.severity = silent
+
+# CA1822: Mark members as static (methods that don't access instance data)
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA2007: Consider calling ConfigureAwait on awaited tasks
+# Suppressing since WinForms apps use single-threaded context and we use
+# synchronous patterns for UI thread safety
+dotnet_diagnostic.CA2007.severity = silent
+
+# CA2201: Do not raise reserved exception types (e.g. Exception, ApplicationException)
+dotnet_diagnostic.CA2201.severity = warning
+
+# CA2249: Consider using String.Contains instead of String.IndexOf
+dotnet_diagnostic.CA2249.severity = suggestion
+
+# CA1854: Prefer IDictionary.TryGetValue over (ContainsKey + Item)
+dotnet_diagnostic.CA1854.severity = suggestion
+
+# CA1859: Use concrete types when possible for improved performance
+dotnet_diagnostic.CA1859.severity = suggestion
+
+# CA1861: Avoid constant arrays as arguments (create static array instead)
+dotnet_diagnostic.CA1861.severity = suggestion
+
+# CA2023: Use logger message templates (structured logging)
+dotnet_diagnostic.CA2023.severity = suggestion
+
+# CA1510: Use ArgumentNullException throw helper
+dotnet_diagnostic.CA1510.severity = suggestion
+
+# CA5392: Use DllImport instead of Declare for P/Invoke (RawPrinterHelper)
+dotnet_diagnostic.CA5392.severity = silent
+
+# --- Naming Conventions ---
+
+# Private fields: _camelCase
+dotnet_naming_rule.private_fields_rule.import_to_resharper = true
+dotnet_naming_rule.private_fields_rule.symbols = private_fields
+dotnet_naming_rule.private_fields_rule.style = _camel_case
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_style._camel_case.capitalization = camel_case
+dotnet_naming_style._camel_case.required_prefix = _
+
+# Private static fields: s_camelCase (not enforced — underscore is acceptable)
+dotnet_naming_style._camel_case_with_underscore.required_prefix = _
+dotnet_naming_style._camel_case_with_underscore.capitalization = camel_case
+
+# Public members: PascalCase
+dotnet_naming_rule.public_members_rule.symbols = public_members
+dotnet_naming_rule.public_members_rule.style = pascal_case
+dotnet_naming_symbols.public_members.applicable_accessibilities = public, internal, protected, protected_internal
+dotnet_naming_symbols.public_members.applicable_kinds = field, property, method, event
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# Local variables and parameters: camelCase
+dotnet_naming_rule.locals_rule.symbols = locals
+dotnet_naming_rule.locals_rule.style = camel_case
+dotnet_naming_symbols.locals.applicable_accessibilities = local
+dotnet_naming_symbols.locals.applicable_kinds = parameter, local
+dotnet_naming_style.camel_case.capitalization = camel_case
+
+# Interfaces: IPascalCase
+dotnet_naming_rule.interfaces_rule.symbols = interfaces
+dotnet_naming_rule.interfaces_rule.style = i_prefix
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.i_prefix.required_prefix = I
+dotnet_naming_style.i_prefix.capitalization = pascal_case
+
+# Type parameters: TPascalCase (single-letter is okay too)
+dotnet_naming_rule.type_params_rule.symbols = type_params
+dotnet_naming_rule.type_params_rule.style = pascal_case
+dotnet_naming_symbols.type_params.applicable_kinds = type_parameter
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# Enum types: PascalCase
+dotnet_naming_rule.enum_types.symbols = enum_types
+dotnet_naming_rule.enum_types.style = pascal_case
+dotnet_naming_symbols.enum_types.applicable_kinds = enum
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# ==============================================================================
+# Auto-generated EF Core migrations — suppress stylistic/design rules
+# ==============================================================================
+[POS.Infrastructure/Migrations/**]
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.IDE0005.severity = none
