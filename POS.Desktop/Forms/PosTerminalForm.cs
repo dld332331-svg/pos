@@ -22,16 +22,16 @@ namespace POS.Desktop.Forms;
 /// - PaymentSuccess, PaymentFailure, PrinterFailure, PermissionDenied
 /// 
 /// Layout:
-/// â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-/// â”‚ Header: User | Shift | Register | Status            â”‚
-/// â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-/// â”‚ Left (Products)           â”‚ Right (Transaction)     â”‚
-/// â”‚ Search / Barcode          â”‚ Items Grid              â”‚
-/// â”‚ Categories                â”‚ Totals                  â”‚
-/// â”‚ Product Grid              â”‚ Actions (Hold/Cancel)   â”‚
-/// â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-/// â”‚ Bottom Bar: Payment Buttons | Retrieve Button       â”‚
-/// â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+/// ┌─────────────────────────────────────────────────────┐
+/// │ Header: User | Shift | Register | Status            │
+/// ├───────────────────────────┬─────────────────────────┤
+/// │ Left (Products)           │ Right (Transaction)     │
+/// │ Search / Barcode          │ Items Grid              │
+/// │ Categories                │ Totals                  │
+/// │ Product Grid              │ Actions (Hold/Cancel)   │
+/// ├───────────────────────────┴─────────────────────────┤
+/// │ Bottom Bar: Payment Buttons | Retrieve Button       │
+/// └─────────────────────────────────────────────────────┘
 /// </summary>
 public class PosTerminalForm : UserControl
 {
@@ -577,7 +577,7 @@ public class PosTerminalForm : UserControl
         // Status bar label in bottom bar
         _statusBarLabel = new Label
         {
-            Text = "âœ“   جاهز",
+            Text = "✓   جاهز",
             Font = ArabicFont10,
             ForeColor = DesignTokens.Colors.Disabled,
             Dock = DockStyle.Fill,
@@ -987,7 +987,7 @@ public class PosTerminalForm : UserControl
         };
         dismissBtn.Click += (s, e) =>
         {
-            _receiptPrinted = true; // Bypass â€” mark as printed to avoid re-prompt
+            _receiptPrinted = true; // Bypass — mark as printed to avoid re-prompt
             if (_currentState == PosState.PrinterFailure)
             {
                 SetState(PosState.PaymentSuccess);
@@ -1116,7 +1116,7 @@ public class PosTerminalForm : UserControl
     }
 
     // ========================================================================
-    // STATE MACHINE â€” Core state management (spec Section 15.9)
+    // STATE MACHINE — Core state management (spec Section 15.9)
     // ========================================================================
     private void SetState(PosState newState)
     {
@@ -1154,7 +1154,7 @@ public class PosTerminalForm : UserControl
                 _discountButton.Enabled = false;
                 _customerButton.Enabled = false;
                 _searchTextBox.Enabled = true;
-                _statusBarLabel.Text = "âœ“   جاهز â€” ابدأ بالبحث عن منتج";
+                _statusBarLabel.Text = "✓   جاهز — ابدأ بالبحث عن منتج";
                 _statusBarLabel.ForeColor = DesignTokens.Colors.Disabled;
                 break;
 
@@ -1167,7 +1167,7 @@ public class PosTerminalForm : UserControl
                 _discountButton.Enabled = true;
                 _customerButton.Enabled = true;
                 _searchTextBox.Enabled = true;
-                _statusBarLabel.Text = $"ðŸ›’   {_saleItems.Count} أصناف â€” {CalculateTotal():N3} JOD";
+                _statusBarLabel.Text = $"🛒   {_saleItems.Count} أصناف — {CalculateTotal():N3} JOD";
                 _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
                 break;
 
@@ -1180,7 +1180,7 @@ public class PosTerminalForm : UserControl
                 _holdButton.Enabled = false;
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
-                _statusBarLabel.Text = "â³   جاري تحميل المنتج...";
+                _statusBarLabel.Text = "⏳   جاري تحميل المنتج...";
                 _statusBarLabel.ForeColor = DesignTokens.InfoColor;
                 break;
 
@@ -1193,7 +1193,7 @@ public class PosTerminalForm : UserControl
                 _holdButton.Enabled = hasItems;
                 _cancelButton.Enabled = hasItems;
                 _searchTextBox.Enabled = true;
-                _statusBarLabel.Text = "âš ï¸   المنتج غير موجود";
+                _statusBarLabel.Text = "⚠️   المنتج غير موجود";
                 _statusBarLabel.ForeColor = DesignTokens.WarningColor;
                 break;
 
@@ -1206,7 +1206,7 @@ public class PosTerminalForm : UserControl
                 _holdButton.Enabled = hasItems;
                 _cancelButton.Enabled = hasItems;
                 _searchTextBox.Enabled = true;
-                _statusBarLabel.Text = "âš ï¸   المنتج غير متوفر";
+                _statusBarLabel.Text = "⚠️   المنتج غير متوفر";
                 _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
                 _autoDismissTimer.Interval = 2000;
                 _autoDismissTimer.Start();
@@ -1217,7 +1217,7 @@ public class PosTerminalForm : UserControl
                 _cashPaymentButton.Enabled = true;
                 _cardPaymentButton.Enabled = true;
                 _searchTextBox.Enabled = false;
-                _statusBarLabel.Text = "ðŸ’°   إدخال الخصم...";
+                _statusBarLabel.Text = "💰   إدخال الخصم...";
                 _statusBarLabel.ForeColor = DesignTokens.WarningColor;
                 break;
 
@@ -1228,7 +1228,7 @@ public class PosTerminalForm : UserControl
                 _holdButton.Enabled = false;
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
-                _statusBarLabel.Text = "â¸   جاري تعليق الفاتورة...";
+                _statusBarLabel.Text = "⏸   جاري تعليق الفاتورة...";
                 _statusBarLabel.ForeColor = DesignTokens.InfoColor;
                 break;
 
@@ -1239,7 +1239,7 @@ public class PosTerminalForm : UserControl
                 _holdButton.Enabled = false;
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
-                _statusBarLabel.Text = "ðŸ“‚   جاري استرجاع الفاتورة...";
+                _statusBarLabel.Text = "📂   جاري استرجاع الفاتورة...";
                 _statusBarLabel.ForeColor = DesignTokens.InfoColor;
                 break;
 
@@ -1251,7 +1251,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = false;
                 _discountButton.Enabled = false;
                 _searchTextBox.Enabled = false;
-                _statusBarLabel.Text = "ðŸ’³   جاري معالجة الدفع...";
+                _statusBarLabel.Text = "💳   جاري معالجة الدفع...";
                 _statusBarLabel.ForeColor = DesignTokens.InfoColor;
                 break;
 
@@ -1267,7 +1267,7 @@ public class PosTerminalForm : UserControl
                 }
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
-                _statusBarLabel.Text = "âœ…   تم الدفع بنجاح!";
+                _statusBarLabel.Text = "✅   تم الدفع بنجاح!";
                 _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
                 _autoDismissTimer.Interval = 3000;
                 _autoDismissTimer.Start();
@@ -1279,7 +1279,7 @@ public class PosTerminalForm : UserControl
                 _paymentFailureOverlay.BringToFront();
                 _cashPaymentButton.Enabled = true;
                 _cardPaymentButton.Enabled = true;
-                _statusBarLabel.Text = "âŒ   فشلت عملية الدفع";
+                _statusBarLabel.Text = "❌   فشلت عملية الدفع";
                 _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
                 break;
 
@@ -1289,7 +1289,7 @@ public class PosTerminalForm : UserControl
                 _printerFailureOverlay.BringToFront();
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
-                _statusBarLabel.Text = "ðŸ–¨ï¸   فشلت الطباعة â€” تحقق من الطابعة";
+                _statusBarLabel.Text = "🖨️   فشلت الطباعة — تحقق من الطابعة";
                 _statusBarLabel.ForeColor = DesignTokens.WarningColor;
                 break;
 
@@ -1299,7 +1299,7 @@ public class PosTerminalForm : UserControl
                 _permissionDeniedOverlay.BringToFront();
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
-                _statusBarLabel.Text = "ðŸ”’   ليست لديك صلاحية";
+                _statusBarLabel.Text = "🔒   ليست لديك صلاحية";
                 _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
                 break;
         }
@@ -1313,11 +1313,11 @@ public class PosTerminalForm : UserControl
     private void OnStateChanged(PosState oldState, PosState newState)
     {
         System.Diagnostics.Debug.WriteLine(
-            $"[PosState] {oldState} â†’ {newState}");
+            $"[PosState] {oldState} → {newState}");
     }
 
     // ========================================================================
-    // Public API â€” External callers (MainShell, etc.)
+    // Public API — External callers (MainShell, etc.)
     // ========================================================================
 
     /// <summary>
@@ -1405,15 +1405,15 @@ public class PosTerminalForm : UserControl
     /// </summary>
     /// <summary>
     /// Attempts to print a receipt and kitchen tickets for the completed sale.
-    /// Receipt printing is customer-facing â€” failure transitions to PrinterFailure.
-    /// Kitchen ticket printing is operational â€” failures are logged but non-critical.
+    /// Receipt printing is customer-facing — failure transitions to PrinterFailure.
+    /// Kitchen ticket printing is operational — failures are logged but non-critical.
     /// </summary>
     private async Task PrintReceiptForCurrentSaleAsync()
     {
         if (_currentSaleId == Guid.Empty)
             return;
 
-        _statusBarLabel.Text = "ðŸ–¨ï¸   جاري طباعة الإيصال...";
+        _statusBarLabel.Text = "🖨️   جاري طباعة الإيصال...";
         _statusBarLabel.ForeColor = DesignTokens.InfoColor;
 
         bool receiptSucceeded = false;
@@ -1427,13 +1427,13 @@ public class PosTerminalForm : UserControl
                 if (receiptSucceeded)
                 {
                     _receiptPrinted = true;
-                    _statusBarLabel.Text = "âœ…   تمت طباعة الإيصال بنجاح";
+                    _statusBarLabel.Text = "✅   تمت طباعة الإيصال بنجاح";
                     _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
                 }
                 else
                 {
                     _receiptPrinted = false;
-                    _statusBarLabel.Text = "ðŸ–¨ï¸âš ï¸   فشلت طباعة الإيصال â€” تحقق من الطابعة";
+                    _statusBarLabel.Text = "🖨️⚠️   فشلت طباعة الإيصال — تحقق من الطابعة";
                     _statusBarLabel.ForeColor = DesignTokens.WarningColor;
 
                     // Only show printer failure if we're still in PaymentSuccess
@@ -1448,20 +1448,20 @@ public class PosTerminalForm : UserControl
                 // If receipt succeeded, attempt kitchen ticket printing (non-critical)
                 if (receiptSucceeded)
                 {
-                    _statusBarLabel.Text = "ðŸ–¨ï¸ðŸ³   جاري طباعة تذاكر المطبخ...";
+                    _statusBarLabel.Text = "🖨️🍳   جاري طباعة تذاكر المطبخ...";
                     _statusBarLabel.ForeColor = DesignTokens.InfoColor;
 
                     var kitchenSuccess = await _printerManagementService.PrintKitchenTicketsAsync(_currentSaleId);
 
                     if (kitchenSuccess)
                     {
-                        _statusBarLabel.Text = "âœ…   تمت طباعة الإيصال وتذاكر المطبخ";
+                        _statusBarLabel.Text = "✅   تمت طباعة الإيصال وتذاكر المطبخ";
                         _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
                     }
                     else
                     {
-                        // Kitchen tickets failed but receipt succeeded â€” just log, don't block
-                        _statusBarLabel.Text = "âœ…   تمت طباعة الإيصال (بعض تذاكر المطبخ لم تطبع)";
+                        // Kitchen tickets failed but receipt succeeded — just log, don't block
+                        _statusBarLabel.Text = "✅   تمت طباعة الإيصال (بعض تذاكر المطبخ لم تطبع)";
                         _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
                         System.Diagnostics.Debug.WriteLine(
                             $"[PosPrinter] Some kitchen tickets failed for sale {_currentSaleId}");
@@ -1470,16 +1470,16 @@ public class PosTerminalForm : UserControl
             }
             else
             {
-                // No printer management service available â€” printing is optional
+                // No printer management service available — printing is optional
                 _receiptPrinted = true;
-                _statusBarLabel.Text = "âœ…   تم الدفع (لا توجد طابعة إيصالات)";
+                _statusBarLabel.Text = "✅   تم الدفع (لا توجد طابعة إيصالات)";
                 _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
             }
         }
         catch (Exception ex)
         {
             _receiptPrinted = false;
-            _statusBarLabel.Text = "ðŸ–¨ï¸âŒ   خطأ في الطباعة";
+            _statusBarLabel.Text = "🖨️❌   خطأ في الطباعة";
             _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
             System.Diagnostics.Debug.WriteLine(
                 $"[PosPrinter] PrintReceiptForCurrentSaleAsync failed: {ex.Message}");
@@ -1571,7 +1571,7 @@ public class PosTerminalForm : UserControl
         }
         catch
         {
-            _statusBarLabel.Text = "âš ï¸   فشل تحميل المنتجات";
+            _statusBarLabel.Text = "⚠️   فشل تحميل المنتجات";
             _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
         }
         finally
@@ -2107,7 +2107,7 @@ public class PosTerminalForm : UserControl
 
     private decimal CalculateChange()
     {
-        // Placeholder â€” actual change comes from payment dialog
+        // Placeholder — actual change comes from payment dialog
         return 0;
     }
 
@@ -2392,12 +2392,12 @@ public class PosTerminalForm : UserControl
             UpdateRetrieveButton(_heldSalesCache.Count);
 
             ClearCurrentSale();
-            _statusBarLabel.Text = $"â¸  تم تعليق الفاتورة ({(reason.Length > 0 ? reason : "بدون سبب")})";
+            _statusBarLabel.Text = $"⏸  تم تعليق الفاتورة ({(reason.Length > 0 ? reason : "بدون سبب")})";
             _statusBarLabel.ForeColor = DesignTokens.InfoColor;
         }
         catch
         {
-            _statusBarLabel.Text = "âš ï¸   فشل تعليق الفاتورة";
+            _statusBarLabel.Text = "⚠️   فشل تعليق الفاتورة";
             _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
             SetState(PosState.ActiveSale);
         }
@@ -2438,7 +2438,7 @@ public class PosTerminalForm : UserControl
 
         if (entries.Count == 0)
         {
-            _statusBarLabel.Text = "ðŸ“‚   لا توجد فواتير معلقة";
+            _statusBarLabel.Text = "📂   لا توجد فواتير معلقة";
             _statusBarLabel.ForeColor = DesignTokens.InfoColor;
             return;
         }
@@ -2451,7 +2451,7 @@ public class PosTerminalForm : UserControl
         var retrievedId = HoldSaleDialog.ShowRetrieveDialog(ParentForm, entries);
         if (retrievedId.HasValue)
         {
-            _statusBarLabel.Text = "ðŸ“‚   تم استرجاع الفاتورة";
+            _statusBarLabel.Text = "📂   تم استرجاع الفاتورة";
             _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
 
             // Remove from cache
@@ -2496,7 +2496,7 @@ public class PosTerminalForm : UserControl
         if (confirmResult != DialogResult.Yes) return;
 
         ClearCurrentSale();
-        _statusBarLabel.Text = "ðŸ—‘   تم إلغاء الفاتورة";
+        _statusBarLabel.Text = "🗑   تم إلغاء الفاتورة";
         _statusBarLabel.ForeColor = DesignTokens.WarningColor;
     }
 
@@ -2531,7 +2531,7 @@ public class PosTerminalForm : UserControl
 
             RefreshItemsGrid();
             RefreshTotals();
-            _statusBarLabel.Text = $"ðŸ’°   تم تطبيق خصم: {discountAmount:N3} JOD";
+            _statusBarLabel.Text = $"💰   تم تطبيق خصم: {discountAmount:N3} JOD";
             _statusBarLabel.ForeColor = DesignTokens.WarningColor;
         }
 
@@ -2631,13 +2631,13 @@ public class PosTerminalForm : UserControl
     {
         if (_currentState != PosState.ActiveSale) return;
 
-        // Simple customer search dialog (placeholder â€” can be expanded)
+        // Simple customer search dialog (placeholder — can be expanded)
         var customerName = Microsoft.VisualBasic.Interaction.InputBox(
             "أدخل اسم العميل (اختياري):", "تعيين عميل", "", -1, -1);
 
         if (!string.IsNullOrWhiteSpace(customerName))
         {
-            _statusBarLabel.Text = $"ðŸ‘¤   تم تعيين العميل: {customerName}";
+            _statusBarLabel.Text = $"👤   تم تعيين العميل: {customerName}";
             _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
         }
     }

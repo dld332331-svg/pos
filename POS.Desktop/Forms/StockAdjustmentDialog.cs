@@ -68,7 +68,7 @@ public class StockAdjustmentDialog : Form
     {
         RightToLeft = RightToLeft.Yes;
         RightToLeftLayout = true;
-        Text = _isWasteMode ? "ØªØ³Ø¬ÙŠÙ„ Ù‡Ø§Ù„Ùƒ" : "ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ø®Ø²ÙˆÙ†";
+        Text = _isWasteMode ? "تسجيل هالك" : "تعديل المخزون";
         ClientSize = new Size(420, 380);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -89,7 +89,7 @@ public class StockAdjustmentDialog : Form
         // Title
         _titleLabel = new Label
         {
-            Text = _isWasteMode ? "ðŸ—‘ï¸ ØªØ³Ø¬ÙŠÙ„ Ù‡Ø§Ù„Ùƒ" : "ðŸ“ ØªØ¹Ø¯ÙŠÙ„ ÙƒÙ…ÙŠØ© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†",
+            Text = _isWasteMode ? "🗑️ تسجيل هالك" : "📏 تعديل كمية المخزون",
             Font = DesignTokens.HeadingFont,
             ForeColor = _isWasteMode ? DesignTokens.WarningColor : DesignTokens.PrimaryColor,
             Dock = DockStyle.Top,
@@ -100,7 +100,7 @@ public class StockAdjustmentDialog : Form
         // Product info
         _productLabel = new Label
         {
-            Text = "Ø§Ù„Ù…Ù†ØªØ¬:",
+            Text = "المنتج:",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Location = new Point(230, 15),
@@ -121,7 +121,7 @@ public class StockAdjustmentDialog : Form
         // Current quantity
         _currentQtyLabel = new Label
         {
-            Text = "Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ø­Ø§Ù„ÙŠØ©:",
+            Text = "الكمية الحالية:",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Location = new Point(230, 50),
@@ -142,7 +142,7 @@ public class StockAdjustmentDialog : Form
         // New quantity
         _newQtyLabel = new Label
         {
-            Text = _isWasteMode ? "Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ù‡Ø§Ù„ÙƒØ©:" : "Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©:",
+            Text = _isWasteMode ? "الكمية الهالكة:" : "الكمية الجديدة:",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextPrimaryColor,
             Location = new Point(230, 95),
@@ -167,7 +167,7 @@ public class StockAdjustmentDialog : Form
         // Difference
         _differenceLabel = new Label
         {
-            Text = "Ø§Ù„ÙØ±Ù‚:",
+            Text = "الفرق:",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Location = new Point(230, 130),
@@ -177,7 +177,7 @@ public class StockAdjustmentDialog : Form
 
         _differenceValue = new Label
         {
-            Text = "Ù ",
+            Text = "٠",
             Font = new Font(DesignTokens.DefaultFont.FontFamily, 12f, FontStyle.Bold),
             ForeColor = DesignTokens.TextSecondaryColor,
             Location = new Point(10, 128),
@@ -188,7 +188,7 @@ public class StockAdjustmentDialog : Form
         // Reason
         _reasonLabel = new Label
         {
-            Text = "Ø§Ù„Ø³Ø¨Ø¨ *:",
+            Text = "السبب *:",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextPrimaryColor,
             Location = new Point(230, 175),
@@ -203,7 +203,7 @@ public class StockAdjustmentDialog : Form
             Font = DesignTokens.DefaultFont,
             RightToLeft = RightToLeft.Yes,
             Multiline = true,
-            PlaceholderText = "Ø£Ø¯Ø®Ù„ Ø³Ø¨Ø¨ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„...",
+            PlaceholderText = "أدخل سبب التعديل...",
             ScrollBars = ScrollBars.Vertical
         };
 
@@ -218,7 +218,7 @@ public class StockAdjustmentDialog : Form
 
         _cancelButton = new Button
         {
-            Text = "Ø¥Ù„ØºØ§Ø¡",
+            Text = "إلغاء",
             Font = DesignTokens.ButtonFont,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(170, 40),
@@ -230,7 +230,7 @@ public class StockAdjustmentDialog : Form
 
         _confirmButton = new Button
         {
-            Text = _isWasteMode ? "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù‡Ø§Ù„Ùƒ" : "ØªØ£ÙƒÙŠØ¯ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„",
+            Text = _isWasteMode ? "تسجيل الهالك" : "تأكيد التعديل",
             Font = DesignTokens.ButtonFont,
             ForeColor = Color.White,
             BackColor = _isWasteMode ? DesignTokens.WarningColor : DesignTokens.SuccessColor,
@@ -260,13 +260,13 @@ public class StockAdjustmentDialog : Form
         Controls.Add(_titleLabel);
 
         // Overlay panels
-        _loadingPanel = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ³ÙˆÙŠØ©...");
+        _loadingPanel = ThemeManager.CreateLoadingPanel("جاري تحميل بيانات التسوية...");
         _loadingPanel.Visible = false;
 
         _errorPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
         _errorLabel = new Label
         {
-            Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª",
+            Text = "حدث خطأ أثناء تحميل البيانات",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.ErrorColor,
             Dock = DockStyle.Top,
@@ -275,7 +275,7 @@ public class StockAdjustmentDialog : Form
         };
         var retryButton = new Button
         {
-            Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©",
+            Text = "إعادة المحاولة",
             Font = DesignTokens.ButtonFont,
             BackColor = DesignTokens.PrimaryColor,
             ForeColor = Color.White,
@@ -291,7 +291,7 @@ public class StockAdjustmentDialog : Form
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
         _permissionPanel.Controls.Add(new Label
         {
-            Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„ØªØ³ÙˆÙŠØ© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†",
+            Text = "ليس لديك صلاحية لتسوية المخزون",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -339,19 +339,19 @@ public class StockAdjustmentDialog : Form
 
         if (_isWasteMode && _newQtyInput.Value <= 0)
         {
-            _errorProvider.SetError(_newQtyInput, "ÙŠØ¬Ø¨ Ø¥Ø¯Ø®Ø§Ù„ ÙƒÙ…ÙŠØ© Ø£ÙƒØ¨Ø± Ù…Ù† ØµÙØ±");
+            _errorProvider.SetError(_newQtyInput, "يجب إدخال كمية أكبر من صفر");
             return false;
         }
 
         if (!_isWasteMode && _newQtyInput.Value < 0)
         {
-            _errorProvider.SetError(_newQtyInput, "Ø§Ù„ÙƒÙ…ÙŠØ© Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø£Ù† ØªÙƒÙˆÙ† Ø³Ø§Ù„Ø¨Ø©");
+            _errorProvider.SetError(_newQtyInput, "الكمية لا يمكن أن تكون سالبة");
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(_reasonTextBox.Text))
         {
-            _errorProvider.SetError(_reasonTextBox, "Ø§Ù„Ø³Ø¨Ø¨ Ù…Ø·Ù„ÙˆØ¨");
+            _errorProvider.SetError(_reasonTextBox, "السبب مطلوب");
             return false;
         }
 
@@ -373,7 +373,7 @@ public class StockAdjustmentDialog : Form
 
         SetState(StockAdjustmentState.Loading);
         _confirmButton.Enabled = false;
-        _confirmButton.Text = "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸...";
+        _confirmButton.Text = "جاري الحفظ...";
 
         try
         {
@@ -396,7 +396,7 @@ public class StockAdjustmentDialog : Form
 
                 if (!result.Success)
                 {
-                    RtlMessageBox.Show(result.ErrorMessage ?? "ÙØ´Ù„ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error,
+                    RtlMessageBox.Show(result.ErrorMessage ?? "فشل العملية", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error,
                         MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
                     return;
                 }
@@ -408,13 +408,13 @@ public class StockAdjustmentDialog : Form
         }
         catch (Exception ex)
         {
-            _errorLabel.Text = $"Ø®Ø·Ø£: {ex.Message}";
+            _errorLabel.Text = $"خطأ: {ex.Message}";
             SetState(StockAdjustmentState.Error);
         }
         finally
         {
             _confirmButton.Enabled = true;
-            _confirmButton.Text = _isWasteMode ? "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù‡Ø§Ù„Ùƒ" : "ØªØ£ÙƒÙŠØ¯ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„";
+            _confirmButton.Text = _isWasteMode ? "تسجيل الهالك" : "تأكيد التعديل";
         }
     }
 }

@@ -1,83 +1,81 @@
-name: CI
+# ─────────────────────────────────────────────────────────────
+# POS System — CI Pipeline
+# Triggers: push/PR to master, manual dispatch
+# Steps: build → test (Release) with Coverlet coverage → badge
+# ─────────────────────────────────────────────────────────────
+
+name: POS CI
 
 on:
   push:
-    branches: [ main, develop, 'release/**' ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build-and-test:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
+      # ── Checkout ──────────────────────────────────────────
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      # ── Setup .NET ────────────────────────────────────────
+      - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
+      # ── Restore ───────────────────────────────────────────
+      - name: Restore NuGet packages
+        run: dotnet restore POS.sln
+
+      # ── Build + Test with Coverlet Coverage ──────────────
+      # NOTE: Coverlet MSBuild instrumentation requires the
+      # build to run WITH the /p:CollectCoverage=true property.
+      # Using --no-build would skip instrumentation.
+      - name: Run tests with Coverlet coverage
+        run: |
+          dotnet test POS.sln --configuration Release `
+            /p:CollectCoverage=true `
+            /p:CoverletOutputFormat=opencover `
+            /p:CoverletOutput=../coverage.xml `
+            --logger "console;verbosity=normal"
+
+      # ── Upload Coverage to Codecov ────────────────────────
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: success()
         with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: false
 
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build (Debug)
-        run: dotnet build --no-restore --configuration Debug
-
-      - name: Build (Release)
-        run: dotnet build --no-restore --configuration Release
-
-      - name: Run unit + integration tests (Release)
-        run: dotnet test --no-build --configuration Release --filter Category!=UITest --verbosity normal
-
+      # ── Upload Test Results (always, for debugging) ──────
       - name: Upload test results
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test-results
-          path: |
-            **/TestResults/**/*.trx
-            **/TestResults/**/*.xml
+          path: TestResults/
+          retention-days: 7
 
-  # Optional: Code coverage analysis (requires Coverlet)
-  # coverage:
-  #   runs-on: windows-latest
-  #   needs: build-and-test
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-dotnet@v4
-  #       with:
-  #         dotnet-version: '10.0.x'
-  #     - run: dotnet tool install --global coverlet.console
-  #     - run: dotnet build --configuration Release
-  #     - run: >
-  #         coverlet POS.Tests/bin/Release/net10.0-windows/POS.Tests.dll
-  #         --target "dotnet" --targetargs "test --no-build --configuration Release --filter Category!=UITest"
-  #         --threshold 0 --format json --format cobertura
-  #         --include "[POS.Application]*" "[POS.Domain]*"
-  #         --output coverage
-  #     - uses: actions/upload-artifact@v4
-  #       with:
-  #         name: coverage-report
-  #         path: coverage.*
+      # ── Publish application (on push to master only) ─────
+      - name: Publish application
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          dotnet publish POS.Desktop/POS.Desktop.csproj `
+            --configuration Release `
+            --output publish/ `
+            --self-contained false
 
-  # Optional: Static analysis
-  # lint:
-  #   runs-on: windows-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-dotnet@v4
-  #       with:
-  #         dotnet-version: '10.0.x'
-  #     - run: dotnet restore
-  #     - run: dotnet build --no-restore --warningsaserrors
-  #     - run: dotnet format --verify-no-changes --verbosity diagnostic
+      - name: Upload build artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-desktop-release
+          path: publish/
+          retention-days: 30

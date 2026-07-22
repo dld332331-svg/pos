@@ -94,7 +94,7 @@ public class ProductForm : Form
         IRecipeService? recipeService, ProductDto product) : this(productService, supplierService, recipeService)
     {
         _existingProduct = product;
-        Text = $"ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù†ØªØ¬: {product.ArabicName}";
+        Text = $"تعديل المنتج: {product.ArabicName}";
         PopulateFields(product);
     }
 
@@ -102,7 +102,7 @@ public class ProductForm : Form
     {
         RightToLeft = RightToLeft.Yes;
         RightToLeftLayout = true;
-        Text = "Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬ Ø¬Ø¯ÙŠØ¯";
+        Text = "إضافة منتج جديد";
         ClientSize = new Size(520, 720);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -125,7 +125,7 @@ public class ProductForm : Form
         // Title
         _titleLabel = new Label
         {
-            Text = _existingProduct != null ? "ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù†ØªØ¬" : "Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬ Ø¬Ø¯ÙŠØ¯",
+            Text = _existingProduct != null ? "تعديل المنتج" : "إضافة منتج جديد",
             Font = DesignTokens.HeadingFont,
             ForeColor = DesignTokens.PrimaryColor,
             Dock = DockStyle.Top,
@@ -140,23 +140,23 @@ public class ProductForm : Form
         int fieldWidth = 280;
         int rowHeight = 48;
 
-        _arabicNameLabel = CreateFieldLabel("Ø§Ù„Ø§Ø³Ù… Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠØ© *", labelX, y);
+        _arabicNameLabel = CreateFieldLabel("الاسم بالعربية *", labelX, y);
         _arabicNameTextBox = CreateFieldTextBox(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _englishNameLabel = CreateFieldLabel("Ø§Ù„Ø§Ø³Ù… Ø¨Ø§Ù„Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ©", labelX, y);
+        _englishNameLabel = CreateFieldLabel("الاسم بالإنجليزية", labelX, y);
         _englishNameTextBox = CreateFieldTextBox(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _skuLabel = CreateFieldLabel("Ø±Ù…Ø² Ø§Ù„Ù…Ù†ØªØ¬ (SKU)", labelX, y);
+        _skuLabel = CreateFieldLabel("رمز المنتج (SKU)", labelX, y);
         _skuTextBox = CreateFieldTextBox(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _barcodeLabel = CreateFieldLabel("Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯", labelX, y);
+        _barcodeLabel = CreateFieldLabel("الباركود", labelX, y);
         _barcodeTextBox = CreateFieldTextBox(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _categoryLabel = CreateFieldLabel("Ø§Ù„ÙØ¦Ø©", labelX, y);
+        _categoryLabel = CreateFieldLabel("الفئة", labelX, y);
         _categoryComboBox = new ComboBox
         {
             Location = new Point(fieldX, y + 22),
@@ -167,7 +167,7 @@ public class ProductForm : Form
         };
         y += rowHeight;
 
-        _typeLabel = CreateFieldLabel("Ù†ÙˆØ¹ Ø§Ù„Ù…Ù†ØªØ¬", labelX, y);
+        _typeLabel = CreateFieldLabel("نوع المنتج", labelX, y);
         _typeComboBox = new ComboBox
         {
             Location = new Point(fieldX, y + 22),
@@ -176,11 +176,11 @@ public class ProductForm : Form
             Font = DesignTokens.DefaultFont,
             RightToLeft = RightToLeft.Yes
         };
-        _typeComboBox.Items.AddRange(new object[] { "Ø¨Ø³ÙŠØ·", "Ù…ØªØºÙŠØ±", "Ù…Ø±ÙƒØ¨" });
+        _typeComboBox.Items.AddRange(new object[] { "بسيط", "متغير", "مركب" });
         _typeComboBox.SelectedIndex = 0;
         y += rowHeight;
 
-        _unitLabel = CreateFieldLabel("Ø§Ù„ÙˆØ­Ø¯Ø©", labelX, y);
+        _unitLabel = CreateFieldLabel("الوحدة", labelX, y);
         _unitComboBox = new ComboBox
         {
             Location = new Point(fieldX, y + 22),
@@ -191,23 +191,23 @@ public class ProductForm : Form
         };
         y += rowHeight;
 
-        _costLabel = CreateFieldLabel("Ø§Ù„ØªÙƒÙ„ÙØ©", labelX, y);
+        _costLabel = CreateFieldLabel("التكلفة", labelX, y);
         _costNumeric = CreateDecimalNumeric(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _sellingPriceLabel = CreateFieldLabel("Ø³Ø¹Ø± Ø§Ù„Ø¨ÙŠØ¹ *", labelX, y);
+        _sellingPriceLabel = CreateFieldLabel("سعر البيع *", labelX, y);
         _sellingPriceNumeric = CreateDecimalNumeric(fieldX, y + 22, fieldWidth);
         y += rowHeight;
 
-        _taxRateLabel = CreateFieldLabel("Ù†Ø³Ø¨Ø© Ø§Ù„Ø¶Ø±ÙŠØ¨Ø© %", labelX, y);
+        _taxRateLabel = CreateFieldLabel("نسبة الضريبة %", labelX, y);
         _taxRateNumeric = CreateDecimalNumeric(fieldX, y + 22, fieldWidth, 0, 100, 15m);
         y += rowHeight;
 
-        _minStockLabel = CreateFieldLabel("Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰ Ù„Ù„Ù…Ø®Ø²ÙˆÙ†", labelX, y);
+        _minStockLabel = CreateFieldLabel("الحد الأدنى للمخزون", labelX, y);
         _minStockNumeric = CreateDecimalNumeric(fieldX, y + 22, fieldWidth, 0, 99999, 5m);
         y += rowHeight;
 
-        _supplierLabel = CreateFieldLabel("Ø§Ù„Ù…ÙˆØ±Ø¯", labelX, y);
+        _supplierLabel = CreateFieldLabel("المورد", labelX, y);
         _supplierComboBox = new ComboBox
         {
             Location = new Point(fieldX, y + 22),
@@ -221,7 +221,7 @@ public class ProductForm : Form
         // Recipe button (only shown when editing an existing product)
         _recipeButton = new Button
         {
-            Text = "ðŸ“‹ ÙˆØµÙØ© Ø§Ù„ØªØµÙ†ÙŠØ¹",
+            Text = "📋 وصفة التصنيع",
             Font = DesignTokens.DefaultFont,
             FlatStyle = FlatStyle.Flat,
             Location = new Point(fieldX, y + 22),
@@ -234,10 +234,10 @@ public class ProductForm : Form
         _recipeButton.Click += RecipeButton_Click;
         y += rowHeight;
 
-        _imageLabel = CreateFieldLabel("ØµÙˆØ±Ø© Ø§Ù„Ù…Ù†ØªØ¬", labelX, y);
+        _imageLabel = CreateFieldLabel("صورة المنتج", labelX, y);
         _imageButton = new Button
         {
-            Text = "ðŸ“ Ø§Ø®ØªØ± ØµÙˆØ±Ø©",
+            Text = "📁 اختر صورة",
             Font = DesignTokens.DefaultFont,
             FlatStyle = FlatStyle.Flat,
             Location = new Point(fieldX, y + 22),
@@ -249,7 +249,7 @@ public class ProductForm : Form
 
         _imagePreviewLabel = new Label
         {
-            Text = "Ù„Ø§ ØªÙˆØ¬Ø¯ ØµÙˆØ±Ø©",
+            Text = "لا توجد صورة",
             Font = DesignTokens.SmallFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Location = new Point(fieldX + fieldWidth - 55, y + 25),
@@ -260,7 +260,7 @@ public class ProductForm : Form
 
         _activeCheckBox = new CheckBox
         {
-            Text = "Ø§Ù„Ù…Ù†ØªØ¬ Ù†Ø´Ø·",
+            Text = "المنتج نشط",
             Font = DesignTokens.DefaultFont,
             Location = new Point(fieldX, y),
             Size = new Size(fieldWidth, 26),
@@ -270,7 +270,7 @@ public class ProductForm : Form
 
         _modifiersCheckBox = new CheckBox
         {
-            Text = "ÙŠØ³Ù…Ø­ Ø¨Ø§Ù„Ø¥Ø¶Ø§ÙØ§Øª",
+            Text = "يسمح بالإضافات",
             Font = DesignTokens.DefaultFont,
             Location = new Point(fieldX, y + 28),
             Size = new Size(fieldWidth, 26),
@@ -288,7 +288,7 @@ public class ProductForm : Form
 
         _cancelButton = new Button
         {
-            Text = "Ø¥Ù„ØºØ§Ø¡",
+            Text = "إلغاء",
             Font = DesignTokens.ButtonFont,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(180, 40),
@@ -300,7 +300,7 @@ public class ProductForm : Form
 
         _saveButton = new Button
         {
-            Text = "Ø­ÙØ¸ Ø§Ù„Ù…Ù†ØªØ¬",
+            Text = "حفظ المنتج",
             Font = DesignTokens.ButtonFont,
             ForeColor = Color.White,
             BackColor = DesignTokens.SuccessColor,
@@ -341,13 +341,13 @@ public class ProductForm : Form
         Controls.Add(actionsPanel);
 
         // Overlay panels
-        _loadingPanel = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ù†ØªØ¬...");
+        _loadingPanel = ThemeManager.CreateLoadingPanel("جاري تحميل بيانات المنتج...");
         _loadingPanel.Visible = false;
 
         _errorPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
         _errorLabel = new Label
         {
-            Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª",
+            Text = "حدث خطأ أثناء تحميل البيانات",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.ErrorColor,
             Dock = DockStyle.Top,
@@ -356,7 +356,7 @@ public class ProductForm : Form
         };
         var retryButton = new Button
         {
-            Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©",
+            Text = "إعادة المحاولة",
             Font = DesignTokens.ButtonFont,
             BackColor = DesignTokens.PrimaryColor,
             ForeColor = Color.White,
@@ -372,7 +372,7 @@ public class ProductForm : Form
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
         _permissionPanel.Controls.Add(new Label
         {
-            Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª",
+            Text = "ليس لديك صلاحية لإدارة المنتجات",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -435,14 +435,14 @@ public class ProductForm : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "Ø§Ø®ØªØ± ØµÙˆØ±Ø© Ø§Ù„Ù…Ù†ØªØ¬",
-            Filter = "ØµÙˆØ±|*.jpg;*.jpeg;*.png;*.bmp"
+            Title = "اختر صورة المنتج",
+            Filter = "صور|*.jpg;*.jpeg;*.png;*.bmp"
         };
 
         if (dialog.ShowDialog() == DialogResult.OK)
         {
             _imagePath = dialog.FileName;
-            _imagePreviewLabel.Text = "âœ…";
+            _imagePreviewLabel.Text = "✅";
             _imagePreviewLabel.ForeColor = DesignTokens.SuccessColor;
         }
     }
@@ -456,7 +456,7 @@ public class ProductForm : Form
             var recipe = await _recipeService.GetRecipeByProductAsync(_existingProduct.Id);
 
             // Show recipe details in a simple dialog
-            var dialog = new RtlDialog($"ÙˆØµÙØ©: {_existingProduct.ArabicName}", 500, 400);
+            var dialog = new RtlDialog($"وصفة: {_existingProduct.ArabicName}", 500, 400);
 
             var panel = new Panel
             {
@@ -468,8 +468,8 @@ public class ProductForm : Form
             var infoLabel = new Label
             {
                 Text = recipe != null
-                    ? $"Ø§Ù„ÙˆØµÙØ© Ù…ÙˆØ¬ÙˆØ¯Ø© - {recipe.Ingredients.Count} Ù…ÙƒÙˆÙ†Ø§Øª"
-                    : "Ù„Ø§ ØªÙˆØ¬Ø¯ ÙˆØµÙØ© Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ Ø¨Ø¹Ø¯",
+                    ? $"الوصفة موجودة - {recipe.Ingredients.Count} مكونات"
+                    : "لا توجد وصفة لهذا المنتج بعد",
                 Font = DesignTokens.DefaultFont,
                 ForeColor = DesignTokens.TextSecondaryColor,
                 Dock = DockStyle.Top,
@@ -482,7 +482,7 @@ public class ProductForm : Form
             {
                 var costLabel = new Label
                 {
-                    Text = $"Ø§Ù„ØªÙƒÙ„ÙØ© Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ©: {recipe.TotalCost:N3} JOD",
+                    Text = $"التكلفة الإجمالية: {recipe.TotalCost:N3} JOD",
                     Font = DesignTokens.HeadingFont,
                     ForeColor = DesignTokens.PrimaryColor,
                     Dock = DockStyle.Bottom,
@@ -499,7 +499,7 @@ public class ProductForm : Form
                 };
                 foreach (var ing in recipe.Ingredients)
                 {
-                    ingredientsList.Items.Add($"{ing.ItemName} - Ø§Ù„ÙƒÙ…ÙŠØ©: {ing.Quantity} {ing.Unit}");
+                    ingredientsList.Items.Add($"{ing.ItemName} - الكمية: {ing.Quantity} {ing.Unit}");
                 }
                 panel.Controls.Add(ingredientsList);
             }
@@ -507,7 +507,7 @@ public class ProductForm : Form
             {
                 var noRecipeLabel = new Label
                 {
-                    Text = "ÙŠÙ…ÙƒÙ†Ùƒ Ø¥Ù†Ø´Ø§Ø¡ ÙˆØµÙØ© ØªØµÙ†ÙŠØ¹ Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ Ù…Ù† Ø®Ù„Ø§Ù„ Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„ÙˆØµÙØ§Øª",
+                    Text = "يمكنك إنشاء وصفة تصنيع لهذا المنتج من خلال إدارة الوصفات",
                     Font = DesignTokens.Typography.Secondary,
                     ForeColor = DesignTokens.TextSecondaryColor,
                     Dock = DockStyle.Top,
@@ -518,12 +518,12 @@ public class ProductForm : Form
             }
 
             dialog.ContentArea.Controls.Add(panel);
-            dialog.AddAction("Ø¥ØºÙ„Ø§Ù‚", (s, e) => { dialog.DialogResult = DialogResult.OK; dialog.Close(); });
+            dialog.AddAction("إغلاق", (s, e) => { dialog.DialogResult = DialogResult.OK; dialog.Close(); });
             dialog.ShowDialog(this);
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"Ø®Ø·Ø£ ÙÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙˆØµÙØ©: {ex.Message}", "Ø®Ø·Ø£",
+            RtlMessageBox.Show($"خطأ في تحميل الوصفة: {ex.Message}", "خطأ",
                 MessageBoxButtons.OK, MessageBoxIcon.Error,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
@@ -537,10 +537,10 @@ public class ProductForm : Form
         _barcodeTextBox.Text = product.Barcode ?? "";
         _typeComboBox.SelectedItem = product.ProductType switch
         {
-            "Simple" => "Ø¨Ø³ÙŠØ·",
-            "Variable" => "Ù…ØªØºÙŠØ±",
-            "Composite" => "Ù…Ø±ÙƒØ¨",
-            _ => "Ø¨Ø³ÙŠØ·"
+            "Simple" => "بسيط",
+            "Variable" => "متغير",
+            "Composite" => "مركب",
+            _ => "بسيط"
         };
         if (product.Unit != null)
         {
@@ -572,19 +572,19 @@ public class ProductForm : Form
 
         if (string.IsNullOrWhiteSpace(_arabicNameTextBox.Text))
         {
-            _errorProvider.SetError(_arabicNameTextBox, "Ø§Ù„Ø§Ø³Ù… Ø¨Ø§Ù„Ø¹Ø±Ø¨ÙŠØ© Ù…Ø·Ù„ÙˆØ¨");
+            _errorProvider.SetError(_arabicNameTextBox, "الاسم بالعربية مطلوب");
             isValid = false;
         }
 
         if (_sellingPriceNumeric.Value <= 0)
         {
-            _errorProvider.SetError(_sellingPriceNumeric, "Ø³Ø¹Ø± Ø§Ù„Ø¨ÙŠØ¹ ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø£ÙƒØ¨Ø± Ù…Ù† ØµÙØ±");
+            _errorProvider.SetError(_sellingPriceNumeric, "سعر البيع يجب أن يكون أكبر من صفر");
             isValid = false;
         }
 
         if (_costNumeric.Value < 0)
         {
-            _errorProvider.SetError(_costNumeric, "Ø§Ù„ØªÙƒÙ„ÙØ© Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø£Ù† ØªÙƒÙˆÙ† Ø³Ø§Ù„Ø¨Ø©");
+            _errorProvider.SetError(_costNumeric, "التكلفة لا يمكن أن تكون سالبة");
             isValid = false;
         }
 
@@ -596,7 +596,7 @@ public class ProductForm : Form
         if (!ValidateForm()) return;
 
         _saveButton.Enabled = false;
-        _saveButton.Text = "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø­ÙØ¸...";
+        _saveButton.Text = "جاري الحفظ...";
 
         try
         {
@@ -605,7 +605,7 @@ public class ProductForm : Form
             var supplierIdx = _supplierComboBox.SelectedIndex;
             var supplierId = supplierIdx > 0 && _suppliers.Count > 0 ? _suppliers[supplierIdx - 1].Id : (Guid?)null;
 
-            var typeMap = new Dictionary<string, string> { { "Ø¨Ø³ÙŠØ·", "Simple" }, { "Ù…ØªØºÙŠØ±", "Variable" }, { "Ù…Ø±ÙƒØ¨", "Composite" } };
+            var typeMap = new Dictionary<string, string> { { "بسيط", "Simple" }, { "متغير", "Variable" }, { "مركب", "Composite" } };
             var productType = typeMap.TryGetValue(_typeComboBox.SelectedItem?.ToString() ?? "", out var pt) ? pt : "Simple";
 
             if (_existingProduct != null)
@@ -643,13 +643,13 @@ public class ProductForm : Form
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø­ÙØ¸: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error,
+            RtlMessageBox.Show($"خطأ في الحفظ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
         finally
         {
             _saveButton.Enabled = true;
-            _saveButton.Text = "Ø­ÙØ¸ Ø§Ù„Ù…Ù†ØªØ¬";
+            _saveButton.Text = "حفظ المنتج";
         }
     }
 
@@ -681,7 +681,7 @@ public class ProductForm : Form
             _categories.AddRange(cats);
 
             _categoryComboBox.Items.Clear();
-            _categoryComboBox.Items.Add("â€” Ø¨Ø¯ÙˆÙ† ÙØ¦Ø© â€”");
+            _categoryComboBox.Items.Add("— بدون فئة —");
             foreach (var cat in _categories)
                 _categoryComboBox.Items.Add(cat.Name);
             _categoryComboBox.SelectedIndex = 0;
@@ -704,7 +704,7 @@ public class ProductForm : Form
 
             // Load real suppliers from service
             _supplierComboBox.Items.Clear();
-            _supplierComboBox.Items.Add("â€” Ø¨Ø¯ÙˆÙ† Ù…ÙˆØ±Ø¯ â€”");
+            _supplierComboBox.Items.Add("— بدون مورد —");
 
             if (_supplierService != null)
             {
@@ -728,7 +728,7 @@ public class ProductForm : Form
         }
         catch
         {
-            _errorLabel.Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª";
+            _errorLabel.Text = "حدث خطأ أثناء تحميل البيانات";
             SetState(ProductFormState.Error);
         }
     }

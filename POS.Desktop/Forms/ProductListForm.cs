@@ -93,21 +93,21 @@ public class ProductListForm : UserControl
             Size = new Size(200, 28),
             Font = DesignTokens.DefaultFont,
             RightToLeft = RightToLeft.Yes,
-            PlaceholderText = "ðŸ” Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯..."
+            PlaceholderText = "🔍 بحث بالاسم أو الباركود..."
         };
         _searchTextBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; _ = SearchAsync(); } };
 
-        _categoryFilterCombo = CreateFilterCombo(new[] { "Ø¬Ù…ÙŠØ¹ Ø§Ù„ÙØ¦Ø§Øª" }, 240, 10);
-        _typeFilterCombo = CreateFilterCombo(new[] { "Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø£Ù†ÙˆØ§Ø¹", "Ø¨Ø³ÙŠØ·", "Ù…ØªØºÙŠØ±", "Ù…Ø±ÙƒØ¨" }, 165, 10);
-        _statusFilterCombo = CreateFilterCombo(new[] { "Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª", "Ù†Ø´Ø·", "ØºÙŠØ± Ù†Ø´Ø·", "Ø£Ø±Ø´ÙŠÙ" }, 90, 10);
+        _categoryFilterCombo = CreateFilterCombo(new[] { "جميع الفئات" }, 240, 10);
+        _typeFilterCombo = CreateFilterCombo(new[] { "جميع الأنواع", "بسيط", "متغير", "مركب" }, 165, 10);
+        _statusFilterCombo = CreateFilterCombo(new[] { "جميع الحالات", "نشط", "غير نشط", "أرشيف" }, 90, 10);
 
-        _searchButton = new Button { Text = "Ø¨Ø­Ø«", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(480, 10), Size = new Size(60, 28), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _searchButton = new Button { Text = "بحث", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(480, 10), Size = new Size(60, 28), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _searchButton.Click += async (s, e) => await SearchAsync();
 
-        _refreshButton = new Button { Text = "ðŸ”„", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(545, 10), Size = new Size(28, 28), BackColor = DesignTokens.CardColor, Cursor = Cursors.Hand };
+        _refreshButton = new Button { Text = "🔄", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(545, 10), Size = new Size(28, 28), BackColor = DesignTokens.CardColor, Cursor = Cursors.Hand };
         _refreshButton.Click += async (s, e) => await LoadDataAsync();
 
-        _addButton = new Button { Text = "âž• Ø¥Ø¶Ø§ÙØ© Ù…Ù†ØªØ¬", Font = DesignTokens.ButtonFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 8), Size = new Size(130, 32), BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _addButton = new Button { Text = "➕ إضافة منتج", Font = DesignTokens.ButtonFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 8), Size = new Size(130, 32), BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _addButton.Click += (s, e) => AddProductRequested?.Invoke(this, EventArgs.Empty);
 
         _toolbarPanel.Controls.Add(_searchButton);
@@ -137,14 +137,14 @@ public class ProductListForm : UserControl
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         };
 
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø§Ø³Ù…", Name = "Name", FillWeight = 20 });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯", Name = "Barcode", FillWeight = 12 });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ÙØ¦Ø©", Name = "Category", FillWeight = 12 });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù†ÙˆØ¹", Name = "Type", FillWeight = 8 });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø³Ø¹Ø±", Name = "Price", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3", Alignment = DataGridViewContentAlignment.MiddleLeft } });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø®Ø²ÙˆÙ†", Name = "Stock", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø§Ù„Ø©", Name = "Status", FillWeight = 8 });
-        _productsGrid.Columns.Add(new DataGridViewButtonColumn { HeaderText = "Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", Name = "Actions", FillWeight = 10, Text = "ØªØ¹Ø¯ÙŠÙ„ / Ø­Ø°Ù", UseColumnTextForButtonValue = true });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الاسم", Name = "Name", FillWeight = 20 });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الباركود", Name = "Barcode", FillWeight = 12 });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الفئة", Name = "Category", FillWeight = 12 });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "النوع", Name = "Type", FillWeight = 8 });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "السعر", Name = "Price", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3", Alignment = DataGridViewContentAlignment.MiddleLeft } });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المخزون", Name = "Stock", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _productsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحالة", Name = "Status", FillWeight = 8 });
+        _productsGrid.Columns.Add(new DataGridViewButtonColumn { HeaderText = "إجراءات", Name = "Actions", FillWeight = 10, Text = "تعديل / حذف", UseColumnTextForButtonValue = true });
 
         _productsGrid.CellClick += ProductsGrid_CellClick;
         _productsGrid.CellFormatting += ProductsGrid_CellFormatting;
@@ -160,7 +160,7 @@ public class ProductListForm : UserControl
 
         _totalCountLabel = new Label
         {
-            Text = "Ø¥Ø¬Ù…Ø§Ù„ÙŠ: Ù ",
+            Text = "إجمالي: ٠",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Dock = DockStyle.Right,
@@ -168,15 +168,15 @@ public class ProductListForm : UserControl
             TextAlign = ContentAlignment.MiddleRight
         };
 
-        _prevPageButton = new Button { Text = $"{RtlIconHelper.GetPaginationArrow(false)} Ø§Ù„Ø³Ø§Ø¨Ù‚", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(90, 28), Dock = DockStyle.Left, Cursor = Cursors.Hand, Enabled = false };
+        _prevPageButton = new Button { Text = $"{RtlIconHelper.GetPaginationArrow(false)} السابق", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(90, 28), Dock = DockStyle.Left, Cursor = Cursors.Hand, Enabled = false };
         _prevPageButton.Click += async (s, e) => { _currentPage--; await LoadDataAsync(); };
 
-        _nextPageButton = new Button { Text = $"Ø§Ù„ØªØ§Ù„ÙŠ {RtlIconHelper.GetPaginationArrow(true)}", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(90, 28), Dock = DockStyle.Left, Cursor = Cursors.Hand, Enabled = false };
+        _nextPageButton = new Button { Text = $"التالي {RtlIconHelper.GetPaginationArrow(true)}", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(90, 28), Dock = DockStyle.Left, Cursor = Cursors.Hand, Enabled = false };
         _nextPageButton.Click += async (s, e) => { _currentPage++; await LoadDataAsync(); };
 
         _pageInfoLabel = new Label
         {
-            Text = "ØµÙØ­Ø© Ù¡ Ù…Ù† Ù¡",
+            Text = "صفحة ١ من ١",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Dock = DockStyle.Fill,
@@ -189,20 +189,20 @@ public class ProductListForm : UserControl
         _paginationPanel.Controls.Add(_pageInfoLabel);
 
         // Loading panel
-        _loadingPanel = CreateOverlayPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª...", DesignTokens.TextSecondaryColor);
-        _emptyPanel = CreateOverlayPanel("Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ù†ØªØ¬Ø§Øª", DesignTokens.TextSecondaryColor);
+        _loadingPanel = CreateOverlayPanel("جاري تحميل المنتجات...", DesignTokens.TextSecondaryColor);
+        _emptyPanel = CreateOverlayPanel("لا توجد منتجات", DesignTokens.TextSecondaryColor);
         _emptyPanel.Visible = false;
 
         _errorPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
-        _errorLabel = new Label { Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª", Font = DesignTokens.SubheadingFont, ForeColor = DesignTokens.ErrorColor, Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
-        _retryButton = new Button { Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand };
+        _errorLabel = new Label { Text = "حدث خطأ أثناء تحميل المنتجات", Font = DesignTokens.SubheadingFont, ForeColor = DesignTokens.ErrorColor, Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
+        _retryButton = new Button { Text = "إعادة المحاولة", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand };
         _retryButton.Location = new Point((Width / 2) - 75, (Height / 2));
         _retryButton.Anchor = AnchorStyles.None;
         _retryButton.Click += async (s, e) => await LoadDataAsync();
         _errorPanel.Controls.Add(_retryButton);
         _errorPanel.Controls.Add(_errorLabel);
 
-        _permissionPanel = CreateOverlayPanel("Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù†ØªØ¬Ø§Øª", DesignTokens.WarningColor);
+        _permissionPanel = CreateOverlayPanel("ليس لديك صلاحية لإدارة المنتجات", DesignTokens.WarningColor);
         _permissionPanel.Visible = false;
 
         Controls.Add(_loadingPanel);
@@ -275,13 +275,13 @@ public class ProductListForm : UserControl
             _productsGrid.Rows.Clear();
             foreach (var p in result.Items)
             {
-                _productsGrid.Rows.Add(p.ArabicName ?? "", p.Barcode ?? "â€”", p.CategoryName ?? "â€”",
-                    p.ProductType, p.SellingPrice, p.CurrentStock, p.Status, "ØªØ¹Ø¯ÙŠÙ„ / Ø­Ø°Ù");
+                _productsGrid.Rows.Add(p.ArabicName ?? "", p.Barcode ?? "—", p.CategoryName ?? "—",
+                    p.ProductType, p.SellingPrice, p.CurrentStock, p.Status, "تعديل / حذف");
                 _productsGrid.Rows[_productsGrid.Rows.Count - 1].Tag = p;
             }
 
             _totalCount = result.TotalCount;
-            _totalCountLabel.Text = $"Ø¥Ø¬Ù…Ø§Ù„ÙŠ: {_totalCount}";
+            _totalCountLabel.Text = $"إجمالي: {_totalCount}";
             UpdatePagination();
 
             SetState(result.Items.Count > 0 ? ProductListState.Loaded : ProductListState.Empty);
@@ -311,7 +311,7 @@ public class ProductListForm : UserControl
     private void UpdatePagination()
     {
         var totalPages = Math.Max(1, (int)Math.Ceiling((double)_totalCount / _pageSize));
-        _pageInfoLabel.Text = $"ØµÙØ­Ø© {_currentPage} Ù…Ù† {totalPages}";
+        _pageInfoLabel.Text = $"صفحة {_currentPage} من {totalPages}";
         _prevPageButton.Enabled = _currentPage > 1;
         _nextPageButton.Enabled = _currentPage < totalPages;
     }
@@ -328,17 +328,17 @@ public class ProductListForm : UserControl
         var cellRect = _productsGrid.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, true);
         var menu = new ContextMenuStrip { RightToLeft = RightToLeft.Yes };
 
-        var editItem = new ToolStripMenuItem("âœï¸ ØªØ¹Ø¯ÙŠÙ„");
+        var editItem = new ToolStripMenuItem("✏️ تعديل");
         editItem.Click += (s, e) => EditProductRequested?.Invoke(this, product);
         menu.Items.Add(editItem);
 
-        var recipeItem = new ToolStripMenuItem("ðŸ“‹ Ø§Ù„ÙˆØµÙØ©");
+        var recipeItem = new ToolStripMenuItem("📋 الوصفة");
         recipeItem.Click += (s, e) => ShowRecipeDialog(product);
         menu.Items.Add(recipeItem);
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var deleteItem = new ToolStripMenuItem("ðŸ—‘ï¸ Ø­Ø°Ù");
+        var deleteItem = new ToolStripMenuItem("🗑️ حذف");
         deleteItem.Click += (s, e) => ConfirmDelete(product);
         menu.Items.Add(deleteItem);
 
@@ -360,7 +360,7 @@ public class ProductListForm : UserControl
 
         if (_productsGrid.Columns[e.ColumnIndex].Name == "Status")
         {
-            if (e.Value?.ToString() == "Ù†Ø´Ø·" || e.Value?.ToString() == "Active")
+            if (e.Value?.ToString() == "نشط" || e.Value?.ToString() == "Active")
                 e.CellStyle.ForeColor = DesignTokens.SuccessColor;
             else
                 e.CellStyle.ForeColor = DesignTokens.ErrorColor;
@@ -373,7 +373,7 @@ public class ProductListForm : UserControl
         var recipeService = AppServiceProvider.Provider?.GetService(typeof(IRecipeService)) as IRecipeService;
         if (recipeService == null)
         {
-            RtlMessageBox.Show("Ø®Ø¯Ù…Ø© Ø§Ù„ÙˆØµÙØ§Øª ØºÙŠØ± Ù…ØªÙˆÙØ±Ø©", "Ø®Ø·Ø£",
+            RtlMessageBox.Show("خدمة الوصفات غير متوفرة", "خطأ",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
             return;
@@ -387,8 +387,8 @@ public class ProductListForm : UserControl
     private void ConfirmDelete(ProductDto product)
     {
         var result = RtlMessageBox.Show(
-            $"Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø§Ù„Ù…Ù†ØªØ¬ '{product.ArabicName}'ØŸ",
-            "ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø°Ù",
+            $"هل أنت متأكد من حذف المنتج '{product.ArabicName}'؟",
+            "تأكيد الحذف",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button2,
@@ -404,7 +404,7 @@ public class ProductListForm : UserControl
         {
             var cats = await _productService.GetCategoriesAsync();
             _categoryFilterCombo.Items.Clear();
-            _categoryFilterCombo.Items.Add("Ø¬Ù…ÙŠØ¹ Ø§Ù„ÙØ¦Ø§Øª");
+            _categoryFilterCombo.Items.Add("جميع الفئات");
             foreach (var cat in cats) _categoryFilterCombo.Items.Add(cat.Name);
             _categoryFilterCombo.SelectedIndex = 0;
         }

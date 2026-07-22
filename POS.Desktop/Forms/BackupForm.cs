@@ -61,33 +61,33 @@ public class BackupForm : UserControl
         _toolbarPanel = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = DesignTokens.Colors.Surface, Padding = new Padding(DesignTokens.Spacing.Standard) };
 
         var topRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = DesignTokens.ControlHeight.Large, FlowDirection = FlowDirection.RightToLeft, WrapContents = false };
-        _btnCreateBackup = new RtlButton { Text = "ðŸ’¾ Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©", Type = RtlButton.ButtonType.Primary, Width = 200, Height = DesignTokens.ControlHeight.Large };
+        _btnCreateBackup = new RtlButton { Text = "💾 إنشاء نسخة احتياطية", Type = RtlButton.ButtonType.Primary, Width = 200, Height = DesignTokens.ControlHeight.Large };
         _btnCreateBackup.Click += async (s, e) => await CreateBackupAsync();
-        var lblLastBackup = new Label { Text = "Ø¢Ø®Ø± Ù†Ø³Ø®Ø©: Ù„Ù… ÙŠØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø¨Ø¹Ø¯", Font = DesignTokens.Typography.Secondary, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleRight, AutoSize = true, Margin = new Padding(DesignTokens.Spacing.Standard, 0, 0, 0) };
+        var lblLastBackup = new Label { Text = "آخر نسخة: لم يتم إنشاء نسخة بعد", Font = DesignTokens.Typography.Secondary, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleRight, AutoSize = true, Margin = new Padding(DesignTokens.Spacing.Standard, 0, 0, 0) };
         lblLastBackup.Name = "lblLastBackup";
         topRow.Controls.Add(_btnCreateBackup);
         topRow.Controls.Add(lblLastBackup);
         _toolbarPanel.Controls.Add(topRow);
 
         var autoRow = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = DesignTokens.ControlHeight.Standard, FlowDirection = FlowDirection.RightToLeft, WrapContents = false };
-        var lblAutoTitle = new Label { Text = "Ø§Ù„Ù†Ø³Ø® Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ©:", Font = DesignTokens.Typography.BodyBold, ForeColor = DesignTokens.Colors.TextPrimary, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
-        _chkAutoBackup = new CheckBox { Text = "ØªÙØ¹ÙŠÙ„", RightToLeft = RightToLeft.Yes, Font = DesignTokens.Typography.Body, AutoSize = true, Checked = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
+        var lblAutoTitle = new Label { Text = "النسخ الاحتياطية التلقائية:", Font = DesignTokens.Typography.BodyBold, ForeColor = DesignTokens.Colors.TextPrimary, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
+        _chkAutoBackup = new CheckBox { Text = "تفعيل", RightToLeft = RightToLeft.Yes, Font = DesignTokens.Typography.Body, AutoSize = true, Checked = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
         _cmbAutoInterval = new RtlComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120, Height = DesignTokens.ControlHeight.Standard };
-        _cmbAutoInterval.Items.AddRange(new object[] { "ÙƒÙ„ Ø³Ø§Ø¹Ø©", "ÙƒÙ„ 4 Ø³Ø§Ø¹Ø§Øª", "ÙƒÙ„ 8 Ø³Ø§Ø¹Ø§Øª", "ÙŠÙˆÙ…ÙŠØ§Ù‹", "Ø£Ø³Ø¨ÙˆØ¹ÙŠØ§Ù‹" });
+        _cmbAutoInterval.Items.AddRange(new object[] { "كل ساعة", "كل 4 ساعات", "كل 8 ساعات", "يومياً", "أسبوعياً" });
         _cmbAutoInterval.SelectedIndex = 2;
         autoRow.Controls.Add(lblAutoTitle);
         autoRow.Controls.Add(_chkAutoBackup);
-        autoRow.Controls.Add(new Label { Text = "Ø§Ù„ÙØ§ØµÙ„:", Font = DesignTokens.Typography.Body, ForeColor = DesignTokens.Colors.TextPrimary, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Micro, 0) });
+        autoRow.Controls.Add(new Label { Text = "الفاصل:", Font = DesignTokens.Typography.Body, ForeColor = DesignTokens.Colors.TextPrimary, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.Spacing.Micro, 0) });
         autoRow.Controls.Add(_cmbAutoInterval);
         _toolbarPanel.Controls.Add(autoRow);
 
         // DevExpress Grid
         _backupsGrid = new RtlGridControl();
-        _backupsGrid.AddTextColumn("Date", "Ø§Ù„ØªØ§Ø±ÙŠØ®", 180);
-        _backupsGrid.AddTextColumn("Size", "Ø§Ù„Ø­Ø¬Ù…", 100, DevExpress.Utils.HorzAlignment.Center);
-        _backupsGrid.AddTextColumn("User", "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…", 150);
-        _backupsGrid.AddTextColumn("Verified", "Ù…ÙØªØ­Ù‚Ù‚", 100, DevExpress.Utils.HorzAlignment.Center);
-        _backupsGrid.AddActionsColumn("Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", 80);
+        _backupsGrid.AddTextColumn("Date", "التاريخ", 180);
+        _backupsGrid.AddTextColumn("Size", "الحجم", 100, DevExpress.Utils.HorzAlignment.Center);
+        _backupsGrid.AddTextColumn("User", "المستخدم", 150);
+        _backupsGrid.AddTextColumn("Verified", "مُتحقق", 100, DevExpress.Utils.HorzAlignment.Center);
+        _backupsGrid.AddActionsColumn("إجراءات", 80);
 
         // Format verified and actions
         _backupsGrid.GridViewCore.RowCellStyle += (s, e) =>
@@ -104,7 +104,7 @@ public class BackupForm : UserControl
         _backupsGrid.ActionButtonClick += (s, e) =>
         {
             if (e.RowData is DataRowView row)
-                UpdateStatus(true, $"ØªÙ… ØªØ­Ø¶ÙŠØ± Ø§Ù„Ù…Ù„Ù: backup_{Convert.ToDateTime(row["RawDate"]):yyyyMMdd_HHmmss}.zip");
+                UpdateStatus(true, $"تم تحضير الملف: backup_{Convert.ToDateTime(row["RawDate"]):yyyyMMdd_HHmmss}.zip");
         };
 
         // Row focus for restore/delete
@@ -113,9 +113,9 @@ public class BackupForm : UserControl
         // Footer
         _footerPanel = new Panel { Dock = DockStyle.Bottom, Height = DesignTokens.ControlHeight.Large + DesignTokens.Spacing.Compact, BackColor = DesignTokens.Colors.Surface, Padding = new Padding(DesignTokens.Spacing.Standard) };
         var footerInner = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = false };
-        _btnRestore = new RtlButton { Text = "ðŸ”„ Ø§Ø³ØªØ¹Ø§Ø¯Ø©", Type = RtlButton.ButtonType.Destructive, Width = 120, Height = DesignTokens.ControlHeight.Standard };
+        _btnRestore = new RtlButton { Text = "🔄 استعادة", Type = RtlButton.ButtonType.Destructive, Width = 120, Height = DesignTokens.ControlHeight.Standard };
         _btnRestore.Click += async (s, e) => await RestoreBackupAsync();
-        _btnDelete = new RtlButton { Text = "ðŸ—‘ Ø­Ø°Ù", Type = RtlButton.ButtonType.Secondary, Width = 100, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0) };
+        _btnDelete = new RtlButton { Text = "🗑 حذف", Type = RtlButton.ButtonType.Secondary, Width = 100, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0) };
         _btnDelete.Click += DeleteBackup_Click;
         footerInner.Controls.Add(_btnRestore);
         footerInner.Controls.Add(_btnDelete);
@@ -123,22 +123,22 @@ public class BackupForm : UserControl
 
         // Status bar
         _statusBar = new Panel { Dock = DockStyle.Bottom, Height = 36, BackColor = DesignTokens.Colors.Surface, Padding = new Padding(DesignTokens.Spacing.Standard), BorderStyle = BorderStyle.FixedSingle };
-        _lblStatusIcon = new Label { Text = "â—", Font = new Font("Segoe UI", 12f), ForeColor = DesignTokens.Colors.TextSecondary, AutoSize = true, Dock = DockStyle.Right, Width = 20, TextAlign = ContentAlignment.MiddleCenter };
-        _lblStatusText = new Label { Text = "Ø¬Ø§Ù‡Ø²", Font = DesignTokens.Typography.Secondary, ForeColor = DesignTokens.Colors.TextSecondary, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight };
+        _lblStatusIcon = new Label { Text = "●", Font = new Font("Segoe UI", 12f), ForeColor = DesignTokens.Colors.TextSecondary, AutoSize = true, Dock = DockStyle.Right, Width = 20, TextAlign = ContentAlignment.MiddleCenter };
+        _lblStatusText = new Label { Text = "جاهز", Font = DesignTokens.Typography.Secondary, ForeColor = DesignTokens.Colors.TextSecondary, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight };
         _statusBar.Controls.Add(_lblStatusText);
         _statusBar.Controls.Add(_lblStatusIcon);
 
         // Overlays
-        _loadingOverlay = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©...");
+        _loadingOverlay = ThemeManager.CreateLoadingPanel("جاري إنشاء نسخة احتياطية...");
         _loadingOverlay.Visible = false;
         _emptyOverlay = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
-        var emptyIcon = new Label { Text = "ðŸ’¾", Font = new Font("Segoe UI", 48f), TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Top, Height = 80 };
-        var emptyLabel = new Label { Text = "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†Ø³Ø® Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill };
+        var emptyIcon = new Label { Text = "💾", Font = new Font("Segoe UI", 48f), TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Top, Height = 80 };
+        var emptyLabel = new Label { Text = "لا توجد نسخ احتياطية", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill };
         _emptyOverlay.Controls.Add(emptyLabel);
         _emptyOverlay.Controls.Add(emptyIcon);
 
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
-        _permissionPanel.Controls.Add(new Label { Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù†Ø³Ø® Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
+        _permissionPanel.Controls.Add(new Label { Text = "ليس لديك صلاحية لإدارة النسخ الاحتياطية", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
 
         Controls.Add(_loadingOverlay);
         Controls.Add(_emptyOverlay);
@@ -161,7 +161,7 @@ public class BackupForm : UserControl
         if (_loadingOverlay.Visible)
         {
             var lbl = _loadingOverlay.Controls.OfType<Label>().LastOrDefault();
-            if (lbl != null) lbl.Text = state == BackupState.Restoring ? "Ø¬Ø§Ø±ÙŠ Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©..." : "Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©...";
+            if (lbl != null) lbl.Text = state == BackupState.Restoring ? "جاري استعادة النسخة الاحتياطية..." : "جاري إنشاء نسخة احتياطية...";
         }
     }
 
@@ -185,7 +185,7 @@ public class BackupForm : UserControl
         catch (Exception ex)
         {
             SetState(BackupState.Error);
-            UpdateStatus(false, $"ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø³Ø¬Ù„ Ø§Ù„Ù†Ø³Ø®: {ex.Message}");
+            UpdateStatus(false, $"فشل تحميل سجل النسخ: {ex.Message}");
         }
     }
 
@@ -207,7 +207,7 @@ public class BackupForm : UserControl
             row["Date"] = b.CreatedAt.ToString("yyyy/MM/dd HH:mm");
             row["Size"] = FormatFileSize(b.FileSize);
             row["UserM"] = "";
-            row["Verified"] = b.IsVerified ? "âœ“ Ù…ØªØ­Ù‚Ù‚" : "ØºÙŠØ± Ù…ØªØ­Ù‚Ù‚";
+            row["Verified"] = b.IsVerified ? "✓ متحقق" : "غير متحقق";
             row["RawVerified"] = b.IsVerified;
             row["RawDate"] = b.CreatedAt;
             table.Rows.Add(row);
@@ -234,54 +234,54 @@ public class BackupForm : UserControl
     private async Task CreateBackupAsync()
     {
         SetState(BackupState.BackingUp);
-        UpdateStatus(null, "Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©...");
+        UpdateStatus(null, "جاري إنشاء نسخة احتياطية...");
         try
         {
             var backup = await _backupService.CreateBackupAsync(CurrentUserId);
             _backups.Insert(0, backup);
             PopulateGrid();
             SetState(BackupState.Loaded);
-            UpdateStatus(true, $"ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨Ù†Ø¬Ø§Ø­");
-            BackupCompleted?.Invoke(this, "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨Ù†Ø¬Ø§Ø­");
+            UpdateStatus(true, $"تم إنشاء النسخة الاحتياطية بنجاح");
+            BackupCompleted?.Invoke(this, "تم إنشاء النسخة الاحتياطية بنجاح");
             UpdateLastBackupLabel();
         }
         catch (Exception ex)
         {
             SetState(BackupState.Loaded);
-            UpdateStatus(false, $"ÙØ´Ù„ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ù†Ø³Ø®Ø©: {ex.Message}");
+            UpdateStatus(false, $"فشل إنشاء النسخة: {ex.Message}");
         }
     }
 
     private async Task RestoreBackupAsync()
     {
         var backup = GetSelectedBackup();
-        if (backup == null) { RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ù„Ù„Ø§Ø³ØªØ¹Ø§Ø¯Ø©", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (backup == null) { RtlMessageBox.Show("يرجى اختيار نسخة احتياطية للاستعادة", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
-        if (RtlDialog.ShowConfirm("ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø§Ø³ØªØ¹Ø§Ø¯Ø©", $"Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨ØªØ§Ø±ÙŠØ® {backup.CreatedAt:yyyy/MM/dd HH:mm}ØŸ\n\nØ³ÙŠØªÙ… Ø§Ø³ØªØ¨Ø¯Ø§Ù„ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø­Ø§Ù„ÙŠØ©.", "Ù†Ø¹Ù…ØŒ Ù…ØªØ£ÙƒØ¯", "Ø¥Ù„ØºØ§Ø¡") != DialogResult.OK) return;
-        if (RtlDialog.ShowDestructiveConfirm("ØªØ­Ø°ÙŠØ± Ù†Ù‡Ø§Ø¦ÙŠ - Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª", $"âš  ØªØ­Ø°ÙŠØ±: Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„ØªØ±Ø§Ø¬Ø¹ Ø¹Ù†Ù‡Ø§!\n\nØ³ÙŠØªÙ… Ø­Ø°Ù Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø­Ø§Ù„ÙŠØ© ÙˆØ§Ø³ØªØ¨Ø¯Ø§Ù„Ù‡Ø§ Ø¨Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©.\nØ§Ù„ØªØ§Ø±ÙŠØ®: {backup.CreatedAt:yyyy/MM/dd HH:mm}\n\nØ§Ø¶ØºØ· \"Ø§Ø³ØªØ¹Ø§Ø¯Ø©\" Ù„ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©.") != DialogResult.OK) return;
+        if (RtlDialog.ShowConfirm("تأكيد الاستعادة", $"هل أنت متأكد من استعادة النسخة الاحتياطية بتاريخ {backup.CreatedAt:yyyy/MM/dd HH:mm}؟\n\nسيتم استبدال جميع البيانات الحالية.", "نعم، متأكد", "إلغاء") != DialogResult.OK) return;
+        if (RtlDialog.ShowDestructiveConfirm("تحذير نهائي - استعادة البيانات", $"⚠ تحذير: هذه العملية لا يمكن التراجع عنها!\n\nسيتم حذف جميع البيانات الحالية واستبدالها ببيانات النسخة الاحتياطية.\nالتاريخ: {backup.CreatedAt:yyyy/MM/dd HH:mm}\n\nاضغط \"استعادة\" لتأكيد العملية.") != DialogResult.OK) return;
 
         SetState(BackupState.Restoring);
         try
         {
             var result = await _backupService.RestoreBackupAsync(backup.Id, CurrentUserId);
             SetState(BackupState.Loaded);
-            UpdateStatus(result.Success, result.Success ? "ØªÙ…Øª Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨Ù†Ø¬Ø§Ø­" : result.ErrorMessage ?? "ÙØ´Ù„Øª Ø§Ù„Ø§Ø³ØªØ¹Ø§Ø¯Ø©");
+            UpdateStatus(result.Success, result.Success ? "تمت استعادة النسخة الاحتياطية بنجاح" : result.ErrorMessage ?? "فشلت الاستعادة");
             if (result.Success)
-                RestoreCompleted?.Invoke(this, $"ØªÙ…Øª Ø§Ù„Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ù…Ù† Ù†Ø³Ø®Ø© {backup.CreatedAt:yyyy/MM/dd}");
+                RestoreCompleted?.Invoke(this, $"تمت الاستعادة من نسخة {backup.CreatedAt:yyyy/MM/dd}");
             _ = LoadDataAsync();
         }
         catch (Exception ex)
         {
             SetState(BackupState.Loaded);
-            UpdateStatus(false, $"ÙØ´Ù„Øª Ø§Ù„Ø§Ø³ØªØ¹Ø§Ø¯Ø©: {ex.Message}");
+            UpdateStatus(false, $"فشلت الاستعادة: {ex.Message}");
         }
     }
 
     private async void DeleteBackup_Click(object? sender, EventArgs e)
     {
         var backup = GetSelectedBackup();
-        if (backup == null) { RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ù„Ù„Ø­Ø°Ù", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (RtlDialog.ShowDestructiveConfirm("Ø­Ø°Ù Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ©", $"Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨ØªØ§Ø±ÙŠØ® {backup.CreatedAt:yyyy/MM/dd HH:mm}ØŸ\n\nÙ„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„ØªØ±Ø§Ø¬Ø¹ Ø¹Ù† Ù‡Ø°Ù‡ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©.") != DialogResult.OK) return;
+        if (backup == null) { RtlMessageBox.Show("يرجى اختيار نسخة احتياطية للحذف", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (RtlDialog.ShowDestructiveConfirm("حذف نسخة احتياطية", $"هل أنت متأكد من حذف النسخة الاحتياطية بتاريخ {backup.CreatedAt:yyyy/MM/dd HH:mm}؟\n\nلا يمكن التراجع عن هذه العملية.") != DialogResult.OK) return;
 
         try
         {
@@ -289,11 +289,11 @@ public class BackupForm : UserControl
             _backups.Remove(backup);
             PopulateGrid();
             SetState(_backups.Count > 0 ? BackupState.Loaded : BackupState.Empty);
-            UpdateStatus(true, "ØªÙ… Ø­Ø°Ù Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø¨Ù†Ø¬Ø§Ø­");
+            UpdateStatus(true, "تم حذف النسخة الاحتياطية بنجاح");
         }
         catch (Exception ex)
         {
-            UpdateStatus(false, $"ÙØ´Ù„ Ø­Ø°Ù Ø§Ù„Ù†Ø³Ø®Ø©: {ex.Message}");
+            UpdateStatus(false, $"فشل حذف النسخة: {ex.Message}");
         }
     }
 
@@ -313,7 +313,7 @@ public class BackupForm : UserControl
             .FirstOrDefault(l => l.Name == "lblLastBackup");
         if (lblLast != null)
             lblLast.Text = first != null
-                ? $"Ø¢Ø®Ø± Ù†Ø³Ø®Ø©: {first.CreatedAt:yyyy/MM/dd HH:mm}"
-                : "Ø¢Ø®Ø± Ù†Ø³Ø®Ø©: Ù„Ù… ÙŠØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ù†Ø³Ø®Ø© Ø¨Ø¹Ø¯";
+                ? $"آخر نسخة: {first.CreatedAt:yyyy/MM/dd HH:mm}"
+                : "آخر نسخة: لم يتم إنشاء نسخة بعد";
     }
 }

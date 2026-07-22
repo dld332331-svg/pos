@@ -43,7 +43,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         // This creates the __EFMigrationsHistory table alongside all entity tables.
         // MigrateAsync is idempotent: subsequent calls (via SeedData's internal MigrateAsync)
         // will detect the migration is already applied and skip it.
-        // IMPORTANT: We must NOT use EnsureCreatedAsync here â€” it creates tables without the
+        // IMPORTANT: We must NOT use EnsureCreatedAsync here — it creates tables without the
         // __EFMigrationsHistory table, causing conflicts when MigrateAsync runs afterward.
         await using var context = new POSDbContext(_options);
         await context.Database.MigrateAsync();
@@ -72,7 +72,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     }
 
     // ========================================================================
-    // Database Schema â€” OnModelCreating Verification
+    // Database Schema — OnModelCreating Verification
     // ========================================================================
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     {
         await using var context = CreateContext();
 
-        // Act â€” query INFORMATION_SCHEMA for all expected tables
+        // Act — query INFORMATION_SCHEMA for all expected tables
         var tables = await context.Database
             .SqlQuery<string>($@"
                 SELECT TABLE_NAME
@@ -89,7 +89,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
                 ORDER BY TABLE_NAME")
             .ToListAsync();
 
-        // Assert â€” all core entity tables exist
+        // Assert — all core entity tables exist
         tables.Should().Contain("Users");
         tables.Should().Contain("Categories");
         tables.Should().Contain("Products");
@@ -125,7 +125,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     }
 
     // ========================================================================
-    // Seed Data â€” Admin User
+    // Seed Data — Admin User
     // ========================================================================
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         // Act
         await DbInitializer.SeedData(context);
 
-        // Assert â€” admin user exists
+        // Assert — admin user exists
         var admin = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
         admin.Should().NotBeNull();
         admin!.FullName.Should().Be("System Administrator");
@@ -197,20 +197,20 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     {
         await using var context = CreateContext();
 
-        // Act â€” seed twice
+        // Act — seed twice
         await DbInitializer.SeedData(context);
 
         // Create a fresh context to get a clean query
         await using var context2 = CreateContext();
         await DbInitializer.SeedData(context2);
 
-        // Assert â€” only one admin user
+        // Assert — only one admin user
         var adminCount = await context2.Users.CountAsync(u => u.Username == "admin");
         adminCount.Should().Be(1);
     }
 
     // ========================================================================
-    // Seed Data â€” Settings
+    // Seed Data — Settings
     // ========================================================================
 
     [Fact]
@@ -311,13 +311,13 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     {
         await using var context = CreateContext();
 
-        // Act â€” first seed
+        // Act — first seed
         await DbInitializer.SeedData(context);
 
         var firstCount = await context.Settings.CountAsync();
         firstCount.Should().Be(5); // RolePermissions, TaxRate, Currency, StoreInfo, ReceiptSettings
 
-        // Act â€” second seed (idempotent)
+        // Act — second seed (idempotent)
         await using var context2 = CreateContext();
         await DbInitializer.SeedData(context2);
 
@@ -326,7 +326,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     }
 
     // ========================================================================
-    // Soft Delete Query Filter â€” OnModelCreating Behavior
+    // Soft Delete Query Filter — OnModelCreating Behavior
     // ========================================================================
 
     [Fact]
@@ -335,7 +335,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         await using var context = CreateContext();
         await DbInitializer.SeedData(context);
 
-        // Arrange â€” create a product and mark it as deleted
+        // Arrange — create a product and mark it as deleted
         var category = new Category
         {
             Name = "Test Category",
@@ -347,7 +347,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         var product = new Product
         {
             Name = "Deleted Product",
-            ArabicName = "Ù…Ù†ØªØ¬ Ù…Ø­Ø°ÙˆÙ",
+            ArabicName = "منتج محذوف",
             Sku = "DEL-001",
             Price = 10.000m,
             Cost = 5.000m,
@@ -363,12 +363,12 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         product.MarkAsDeleted();
         await context.SaveChangesAsync();
 
-        // Act â€” query should exclude the soft-deleted product
+        // Act — query should exclude the soft-deleted product
         var visibleProducts = await context.Products
             .Where(p => p.Id == productId)
             .ToListAsync();
 
-        // Assert â€” the deleted product is filtered out by HasQueryFilter
+        // Assert — the deleted product is filtered out by HasQueryFilter
         visibleProducts.Should().BeEmpty();
 
         // But it still exists in the database (ignore query filter)
@@ -381,7 +381,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     }
 
     // ========================================================================
-    // MigrateAsync â€” Full Migration Path
+    // MigrateAsync — Full Migration Path
     // ========================================================================
 
     [Fact]
@@ -396,11 +396,11 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
 
         try
         {
-            // Act â€” use the full EF Core migration pipeline to create the schema
+            // Act — use the full EF Core migration pipeline to create the schema
             await using var context = new POSDbContext(migrationOptions);
             await context.Database.MigrateAsync();
 
-            // Assert â€” migration history table exists (use ADO.NET to avoid EF Core SqlQuery quirks)
+            // Assert — migration history table exists (use ADO.NET to avoid EF Core SqlQuery quirks)
             await using var checkConnection = new SqlConnection(migrationConnString);
             await checkConnection.OpenAsync();
             await using var checkCmd = new SqlCommand(@"
@@ -433,7 +433,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
             tables.Should().Contain("InventoryBatches");
             tables.Should().HaveCount(36); // All entity tables (+ UnitOfMeasures)
 
-            // Verify SeedData works on the migrated schema (SeedData internally calls MigrateAsync again â€” idempotent)
+            // Verify SeedData works on the migrated schema (SeedData internally calls MigrateAsync again — idempotent)
             await DbInitializer.SeedData(context);
             var admin = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
             admin.Should().NotBeNull();
@@ -448,7 +448,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     }
 
     // ========================================================================
-    // Unique Constraints â€” OnModelCreating Verification
+    // Unique Constraints — OnModelCreating Verification
     // ========================================================================
 
     [Fact]
@@ -456,7 +456,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     {
         await using var context = CreateContext();
 
-        // Arrange â€” seed a user with a known username first (don't rely on SeedData ordering)
+        // Arrange — seed a user with a known username first (don't rely on SeedData ordering)
         var existingUser = new User
         {
             Id = Guid.NewGuid(),
@@ -469,7 +469,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         context.Users.Add(existingUser);
         await context.SaveChangesAsync();
 
-        // Act â€” try to create a user with the same username
+        // Act — try to create a user with the same username
         var duplicateUser = new User
         {
             Id = Guid.NewGuid(),
@@ -481,7 +481,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         };
         context.Users.Add(duplicateUser);
 
-        // Assert â€” unique constraint violation
+        // Assert — unique constraint violation
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
 
@@ -490,7 +490,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
     {
         await using var context = CreateContext();
 
-        // Arrange â€” seed a setting with a known key first (don't rely on SeedData ordering)
+        // Arrange — seed a setting with a known key first (don't rely on SeedData ordering)
         var existingSetting = new Setting
         {
             Id = Guid.NewGuid(),
@@ -501,7 +501,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         context.Settings.Add(existingSetting);
         await context.SaveChangesAsync();
 
-        // Act â€” try to create a setting with duplicate key
+        // Act — try to create a setting with duplicate key
         var duplicateSetting = new Setting
         {
             Id = Guid.NewGuid(),
@@ -511,7 +511,7 @@ public sealed class DbInitializerIntegrationTests : IAsyncLifetime
         };
         context.Settings.Add(duplicateSetting);
 
-        // Assert â€” unique constraint violation
+        // Assert — unique constraint violation
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
 }

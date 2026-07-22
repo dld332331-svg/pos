@@ -68,15 +68,15 @@ public class CustomerListForm : UserControl
             WrapContents = false
         };
 
-        _btnAddCustomer = new RtlButton { Text = "âž• Ø¥Ø¶Ø§ÙØ© Ø¹Ù…ÙŠÙ„", Type = RtlButton.ButtonType.Primary, Width = 140, Height = DesignTokens.ControlHeight.Standard };
+        _btnAddCustomer = new RtlButton { Text = "➕ إضافة عميل", Type = RtlButton.ButtonType.Primary, Width = 140, Height = DesignTokens.ControlHeight.Standard };
         _btnAddCustomer.Click += (s, e) => ShowCustomerDialog(null);
 
-        _btnRefresh = new RtlButton { Text = "ðŸ”„ ØªØ­Ø¯ÙŠØ«", Type = RtlButton.ButtonType.Ghost, Width = 90, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0) };
+        _btnRefresh = new RtlButton { Text = "🔄 تحديث", Type = RtlButton.ButtonType.Ghost, Width = 90, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0) };
         _btnRefresh.Click += async (s, e) => await LoadDataAsync();
 
-        _lblCount = new Label { Text = "Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡: Ù ", Font = DesignTokens.Typography.BodyBold, ForeColor = DesignTokens.Colors.TextSecondary, AutoSize = true, Margin = new Padding(DesignTokens.Spacing.Standard, 0, DesignTokens.Spacing.Standard, 0) };
+        _lblCount = new Label { Text = "العملاء: ٠", Font = DesignTokens.Typography.BodyBold, ForeColor = DesignTokens.Colors.TextSecondary, AutoSize = true, Margin = new Padding(DesignTokens.Spacing.Standard, 0, DesignTokens.Spacing.Standard, 0) };
 
-        _txtSearch = new RtlTextBox { PlaceholderText = "ðŸ” Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø§Ù„Ù‡Ø§ØªÙ...", Width = 280, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
+        _txtSearch = new RtlTextBox { PlaceholderText = "🔍 بحث بالاسم أو الهاتف...", Width = 280, Height = DesignTokens.ControlHeight.Standard, Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0) };
         _txtSearch.TextChanged += (s, e) => { _searchText = _txtSearch.Text.Trim(); ApplyFilter(); };
 
         toolbarInner.Controls.Add(_btnAddCustomer);
@@ -86,11 +86,11 @@ public class CustomerListForm : UserControl
         _toolbarPanel.Controls.Add(toolbarInner);
 
         _customersGrid = new RtlGridControl();
-        _customersGrid.AddTextColumn("Name", "Ø§Ù„Ø§Ø³Ù…", 220);
-        _customersGrid.AddTextColumn("Phone", "Ø§Ù„Ù‡Ø§ØªÙ", 150);
-        _customersGrid.AddTextColumn("Email", "Ø§Ù„Ø¨Ø±ÙŠØ¯", 220);
-        _customersGrid.AddTextColumn("Balance", "Ø§Ù„Ø±ØµÙŠØ¯", 130, HorzAlignment.Far, "0.000 JOD");
-        _customersGrid.AddActionsColumn("Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", 80);
+        _customersGrid.AddTextColumn("Name", "الاسم", 220);
+        _customersGrid.AddTextColumn("Phone", "الهاتف", 150);
+        _customersGrid.AddTextColumn("Email", "البريد", 220);
+        _customersGrid.AddTextColumn("Balance", "الرصيد", 130, HorzAlignment.Far, "0.000 JOD");
+        _customersGrid.AddActionsColumn("إجراءات", 80);
 
         _customersGrid.GridViewCore.RowCellStyle += (s, e) =>
         {
@@ -118,17 +118,17 @@ public class CustomerListForm : UserControl
                 CustomerSelected?.Invoke(this, (Guid)((DataRowView)row)["__Id"]);
         };
 
-        _loadingOverlay = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡...");
+        _loadingOverlay = ThemeManager.CreateLoadingPanel("جاري تحميل قائمة العملاء...");
         _loadingOverlay.Visible = false;
 
         _emptyOverlay = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
-        var emptyIcon = new Label { Text = "ðŸ‘¥", Font = new Font("Segoe UI", 48f), TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Top, Height = 80 };
-        var emptyLabel = new Label { Text = "Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø¹Ù…Ù„Ø§Ø¡ Ù…Ø³Ø¬Ù„ÙˆÙ†", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill };
+        var emptyIcon = new Label { Text = "👥", Font = new Font("Segoe UI", 48f), TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Top, Height = 80 };
+        var emptyLabel = new Label { Text = "لا يوجد عملاء مسجلون", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill };
         _emptyOverlay.Controls.Add(emptyLabel);
         _emptyOverlay.Controls.Add(emptyIcon);
 
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
-        _permissionPanel.Controls.Add(new Label { Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¹Ø±Ø¶ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
+        _permissionPanel.Controls.Add(new Label { Text = "ليس لديك صلاحية لعرض العملاء", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
 
         Controls.Add(_loadingOverlay);
         Controls.Add(_emptyOverlay);
@@ -158,7 +158,7 @@ public class CustomerListForm : UserControl
         catch (Exception ex)
         {
             SetState(CustomerState.Error);
-            RtlMessageBox.Show($"Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            RtlMessageBox.Show($"حدث خطأ أثناء تحميل العملاء: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -169,7 +169,7 @@ public class CustomerListForm : UserControl
             : _customers.Where(c => c.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) || (c.Phone?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
 
         PopulateGrid();
-        _lblCount.Text = $"Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡: {_filteredCustomers.Count}";
+        _lblCount.Text = $"العملاء: {_filteredCustomers.Count}";
         SetState(_filteredCustomers.Count > 0 ? CustomerState.Loaded : CustomerState.Empty);
     }
 
@@ -200,17 +200,17 @@ public class CustomerListForm : UserControl
     private async Task ShowCustomerActionsMenu(CustomerDto customer)
     {
         var menu = new ContextMenuStrip { RightToLeft = RightToLeft.Yes };
-        var editItem = new ToolStripMenuItem("âœï¸ ØªØ¹Ø¯ÙŠÙ„");
+        var editItem = new ToolStripMenuItem("✏️ تعديل");
         editItem.Click += (s, e) => ShowCustomerDialog(customer);
         menu.Items.Add(editItem);
 
-        var historyItem = new ToolStripMenuItem("ðŸ“‹ Ø³Ø¬Ù„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª");
+        var historyItem = new ToolStripMenuItem("📋 سجل الطلبات");
         historyItem.Click += (s, e) => ShowOrderHistory(customer);
         menu.Items.Add(historyItem);
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var deleteItem = new ToolStripMenuItem("ðŸ—‘ Ø­Ø°Ù");
+        var deleteItem = new ToolStripMenuItem("🗑 حذف");
         deleteItem.Click += (s, e) => DeleteCustomer(customer);
         menu.Items.Add(deleteItem);
 
@@ -220,33 +220,33 @@ public class CustomerListForm : UserControl
     private void ShowCustomerDialog(CustomerDto? existing)
     {
         var isEdit = existing != null;
-        var dialog = new RtlDialog(isEdit ? "ØªØ¹Ø¯ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¹Ù…ÙŠÙ„" : "Ø¥Ø¶Ø§ÙØ© Ø¹Ù…ÙŠÙ„ Ø¬Ø¯ÙŠØ¯", 480, 420);
+        var dialog = new RtlDialog(isEdit ? "تعديل بيانات العميل" : "إضافة عميل جديد", 480, 420);
         var layout = new TableLayoutPanel { ColumnCount = 2, RowCount = 8, Dock = DockStyle.Fill, RightToLeft = RightToLeft.Yes, BackColor = DesignTokens.Colors.Surface, Padding = new Padding(DesignTokens.Spacing.Standard) };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         for (int i = 0; i < 8; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
 
-        layout.Controls.Add(CreateDlgLabel("Ø§Ù„Ø§Ø³Ù… *:"), 0, 0);
+        layout.Controls.Add(CreateDlgLabel("الاسم *:"), 0, 0);
         var txtName = new RtlTextBox { Text = existing?.Name ?? "", Dock = DockStyle.Fill, IsRequired = true };
         layout.Controls.Add(txtName, 1, 0);
 
-        layout.Controls.Add(CreateDlgLabel("Ø§Ù„Ù‡Ø§ØªÙ:"), 0, 1);
+        layout.Controls.Add(CreateDlgLabel("الهاتف:"), 0, 1);
         layout.Controls.Add(new RtlTextBox { Text = existing?.Phone ?? "", Dock = DockStyle.Fill }, 1, 1);
 
-        layout.Controls.Add(CreateDlgLabel("Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ:"), 0, 2);
+        layout.Controls.Add(CreateDlgLabel("البريد الإلكتروني:"), 0, 2);
         layout.Controls.Add(new RtlTextBox { Text = existing?.Email ?? "", Dock = DockStyle.Fill }, 1, 2);
 
-        layout.Controls.Add(CreateDlgLabel("Ø§Ù„Ø¹Ù†ÙˆØ§Ù†:"), 0, 3);
+        layout.Controls.Add(CreateDlgLabel("العنوان:"), 0, 3);
         layout.Controls.Add(new RtlTextBox { Text = existing?.Address ?? "", Dock = DockStyle.Fill }, 1, 3);
 
-        layout.Controls.Add(CreateDlgLabel("Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ø­Ø§Ù„ÙŠ:"), 0, 5);
+        layout.Controls.Add(CreateDlgLabel("الرصيد الحالي:"), 0, 5);
         var lblBalance = new Label { Text = existing != null ? $"{DesignTokens.FormatJOD(existing.Balance)} JOD" : "0.000 JOD", Font = DesignTokens.Typography.BodyBold, ForeColor = existing?.Balance < 0 ? DesignTokens.Colors.Error : DesignTokens.Colors.Success, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill };
         layout.Controls.Add(lblBalance, 1, 5);
 
         dialog.ContentArea.Controls.Add(layout);
-        dialog.AddAction(isEdit ? "ØªØ­Ø¯ÙŠØ«" : "Ø¥Ø¶Ø§ÙØ©", async (s, e) =>
+        dialog.AddAction(isEdit ? "تحديث" : "إضافة", async (s, e) =>
         {
-            if (string.IsNullOrWhiteSpace(txtName.Text)) { RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ø³Ù… Ø§Ù„Ø¹Ù…ÙŠÙ„", "Ø­Ù‚Ù„ Ù…Ø·Ù„ÙˆØ¨", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrWhiteSpace(txtName.Text)) { RtlMessageBox.Show("يرجى إدخال اسم العميل", "حقل مطلوب", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             try
             {
                 if (isEdit && existing != null)
@@ -262,21 +262,21 @@ public class CustomerListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"Ø­Ø¯Ø« Ø®Ø·Ø£: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                RtlMessageBox.Show($"حدث خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
-        dialog.AddAction("Ø¥Ù„ØºØ§Ø¡", (s, e) => dialog.Close(), false);
+        dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
         dialog.ShowDialog(this.FindForm());
     }
 
     private void ShowOrderHistory(CustomerDto customer)
     {
-        var dialog = new RtlDialog($"Ø³Ø¬Ù„ Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ø¹Ù…ÙŠÙ„: {customer.Name}", 700, 450);
+        var dialog = new RtlDialog($"سجل طلبات العميل: {customer.Name}", 700, 450);
         var grid = new RtlGridControl();
-        grid.AddTextColumn("InvoiceNumber", "Ø±Ù‚Ù… Ø§Ù„ÙØ§ØªÙˆØ±Ø©", 120, HorzAlignment.Center);
-        grid.AddTextColumn("Date", "Ø§Ù„ØªØ§Ø±ÙŠØ®", 150);
-        grid.AddTextColumn("Amount", "Ø§Ù„Ù…Ø¨Ù„Øº", 130, HorzAlignment.Far);
-        grid.AddTextColumn("Status", "Ø§Ù„Ø­Ø§Ù„Ø©", 100, HorzAlignment.Center);
+        grid.AddTextColumn("InvoiceNumber", "رقم الفاتورة", 120, HorzAlignment.Center);
+        grid.AddTextColumn("Date", "التاريخ", 150);
+        grid.AddTextColumn("Amount", "المبلغ", 130, HorzAlignment.Far);
+        grid.AddTextColumn("Status", "الحالة", 100, HorzAlignment.Center);
 
         var table = new DataTable();
         table.Columns.Add("InvoiceNumber", typeof(string));
@@ -314,19 +314,19 @@ public class CustomerListForm : UserControl
             if (e.Column.FieldName == "Status")
             {
                 var status = grid.GridViewCore.GetRowCellValue(e.RowHandle, "Status")?.ToString();
-                e.Appearance.ForeColor = status switch { "Ù…ÙƒØªÙ…Ù„" => DesignTokens.Colors.Success, "Ù…Ù„ØºÙŠ" => DesignTokens.Colors.Error, "Ù…Ø¹Ù„Ù‚" => DesignTokens.Colors.Warning, _ => DesignTokens.Colors.TextPrimary };
+                e.Appearance.ForeColor = status switch { "مكتمل" => DesignTokens.Colors.Success, "ملغي" => DesignTokens.Colors.Error, "معلق" => DesignTokens.Colors.Warning, _ => DesignTokens.Colors.TextPrimary };
                 e.Appearance.Options.UseForeColor = true;
             }
         };
 
         dialog.ContentArea.Controls.Add(grid);
-        dialog.AddAction("Ø¥ØºÙ„Ø§Ù‚", (s, e) => dialog.Close(), false);
+        dialog.AddAction("إغلاق", (s, e) => dialog.Close(), false);
         dialog.ShowDialog(this.FindForm());
     }
 
     private async void DeleteCustomer(CustomerDto customer)
     {
-        if (RtlDialog.ShowDestructiveConfirm("Ø­Ø°Ù Ø¹Ù…ÙŠÙ„", $"Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø§Ù„Ø¹Ù…ÙŠÙ„ \"{customer.Name}\"?\n\nØ³ÙŠØªÙ… Ø­Ø°Ù Ø¬Ù…ÙŠØ¹ Ø³Ø¬Ù„Ø§ØªÙ‡ Ù†Ù‡Ø§Ø¦ÙŠØ§Ù‹.") == DialogResult.OK)
+        if (RtlDialog.ShowDestructiveConfirm("حذف عميل", $"هل أنت متأكد من حذف العميل \"{customer.Name}\"?\n\nسيتم حذف جميع سجلاته نهائياً.") == DialogResult.OK)
         {
             try
             {
@@ -335,7 +335,7 @@ public class CustomerListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø­Ø°Ù: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                RtlMessageBox.Show($"حدث خطأ أثناء الحذف: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

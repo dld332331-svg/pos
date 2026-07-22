@@ -30,11 +30,11 @@ public static class ModifierSelectionDialog
         var selectedModifiers = new Dictionary<Guid, int>();
         var selectedSizes = new Dictionary<Guid, Guid?>();
 
-        using var dialog = new RtlDialog($"Ø¥Ø¶Ø§ÙØ© ØªØ¹Ø¯ÙŠÙ„Ø§Øª - {product.ArabicName ?? product.Name}", 520, 480);
+        using var dialog = new RtlDialog($"إضافة تعديلات - {product.ArabicName ?? product.Name}", 520, 480);
 
         var headerLabel = new Label
         {
-            Text = "Ø§Ø®ØªØ± Ø§Ù„ØªØ¹Ø¯ÙŠÙ„Ø§Øª Ø§Ù„Ù…Ø·Ù„ÙˆØ¨Ø©:",
+            Text = "اختر التعديلات المطلوبة:",
             Font = DesignTokens.Typography.CardTitle,
             ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
@@ -64,7 +64,7 @@ public static class ModifierSelectionDialog
         {
             scrollPanel.Controls.Add(new Label
             {
-                Text = "Ù„Ø§ ØªÙˆØ¬Ø¯ ØªØ¹Ø¯ÙŠÙ„Ø§Øª Ù…ØªØ§Ø­Ø© Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬",
+                Text = "لا توجد تعديلات متاحة لهذا المنتج",
                 Font = DesignTokens.Typography.Body,
                 ForeColor = DesignTokens.Colors.TextSecondary,
                 Height = 30,
@@ -76,7 +76,7 @@ public static class ModifierSelectionDialog
         // === Total extra label (placed in the footer area via ContentArea bottom) ===
         var totalExtraLabel = new Label
         {
-            Text = "Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¥Ø¶Ø§ÙÙŠ: 0.000 JOD",
+            Text = "الإجمالي الإضافي: 0.000 JOD",
             Font = DesignTokens.Typography.CardTitle,
             ForeColor = DesignTokens.Colors.Primary,
             Dock = DockStyle.Bottom,
@@ -90,7 +90,7 @@ public static class ModifierSelectionDialog
         dialog.ContentArea.Controls.Add(totalExtraLabel);
 
         // === Dialog actions ===
-        dialog.AddAction("âœ“ ØªØ£ÙƒÙŠØ¯", (s, e) =>
+        dialog.AddAction("✓ تأكيد", (s, e) =>
         {
             if (ValidateSelection(groups, selectedModifiers))
             {
@@ -100,7 +100,7 @@ public static class ModifierSelectionDialog
             }
         }, isPrimary: true);
 
-        dialog.AddAction("âœ— Ø¥Ù„ØºØ§Ø¡", (s, e) =>
+        dialog.AddAction("✗ إلغاء", (s, e) =>
         {
             dialog.DialogResult = DialogResult.Cancel;
             dialog.Close();
@@ -126,8 +126,8 @@ public static class ModifierSelectionDialog
         var groupLabel = new Label
         {
             Text = $"{group.ArabicName ?? group.Name}" +
-                   (group.IsRequired ? " (Ø¥Ù„Ø²Ø§Ù…ÙŠ)" : "") +
-                   (group.MaxSelections > 0 ? $" (Ø­Ø¯ Ø£Ù‚ØµÙ‰: {group.MaxSelections})" : ""),
+                   (group.IsRequired ? " (إلزامي)" : "") +
+                   (group.MaxSelections > 0 ? $" (حد أقصى: {group.MaxSelections})" : ""),
             Font = DesignTokens.Typography.BodyBold,
             ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
@@ -149,11 +149,11 @@ public static class ModifierSelectionDialog
 
             var priceText = modifier.Price > 0
                 ? $"+ {modifier.Price:N3} JOD"
-                : "Ù…Ø¬Ø§Ù†ÙŠ";
+                : "مجاني";
 
             var modCheckBox = new CheckBox
             {
-                Text = $"  {(modifier.ArabicName ?? modifier.Name)}  â€”  {priceText}",
+                Text = $"  {(modifier.ArabicName ?? modifier.Name)}  —  {priceText}",
                 Font = DesignTokens.Typography.Body,
                 ForeColor = DesignTokens.Colors.TextPrimary,
                 Dock = DockStyle.Left,
@@ -263,9 +263,9 @@ public static class ModifierSelectionDialog
         // Find the total label at the bottom of ContentArea
         var totalLabel = dialog.ContentArea.Controls
             .OfType<Label>()
-            .FirstOrDefault(l => l.Text.StartsWith("Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¥Ø¶Ø§ÙÙŠ"));
+            .FirstOrDefault(l => l.Text.StartsWith("الإجمالي الإضافي"));
         if (totalLabel != null)
-            totalLabel.Text = $"Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¥Ø¶Ø§ÙÙŠ: {total:N3} JOD";
+            totalLabel.Text = $"الإجمالي الإضافي: {total:N3} JOD";
     }
 
     private static bool ValidateSelection(
@@ -280,8 +280,8 @@ public static class ModifierSelectionDialog
             if (!hasSelection)
             {
                 RtlMessageBox.Show(
-                    $"ÙŠØ¬Ø¨ Ø§Ø®ØªÙŠØ§Ø± ØªØ¹Ø¯ÙŠÙ„ ÙˆØ§Ø­Ø¯ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù…Ù† Ù…Ø¬Ù…ÙˆØ¹Ø© \"{group.ArabicName ?? group.Name}\"",
-                    "Ø­Ù‚Ù„ Ø¥Ù„Ø²Ø§Ù…ÙŠ",
+                    $"يجب اختيار تعديل واحد على الأقل من مجموعة \"{group.ArabicName ?? group.Name}\"",
+                    "حقل إلزامي",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 return false;
@@ -293,8 +293,8 @@ public static class ModifierSelectionDialog
                 if (count < group.MinSelections)
                 {
                     RtlMessageBox.Show(
-                        $"ÙŠØ¬Ø¨ Ø§Ø®ØªÙŠØ§Ø± {group.MinSelections} ØªØ¹Ø¯ÙŠÙ„Ø§Øª Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù…Ù† \"{group.ArabicName ?? group.Name}\"",
-                        "Ø­Ù‚Ù„ Ø¥Ù„Ø²Ø§Ù…ÙŠ",
+                        $"يجب اختيار {group.MinSelections} تعديلات على الأقل من \"{group.ArabicName ?? group.Name}\"",
+                        "حقل إلزامي",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return false;
@@ -307,8 +307,8 @@ public static class ModifierSelectionDialog
                 if (count > group.MaxSelections)
                 {
                     RtlMessageBox.Show(
-                        $"ÙŠÙ…ÙƒÙ† Ø§Ø®ØªÙŠØ§Ø± {group.MaxSelections} ØªØ¹Ø¯ÙŠÙ„Ø§Øª ÙƒØ­Ø¯ Ø£Ù‚ØµÙ‰ Ù…Ù† \"{group.ArabicName ?? group.Name}\"",
-                        "Ø­Ø¯ Ø£Ù‚ØµÙ‰",
+                        $"يمكن اختيار {group.MaxSelections} تعديلات كحد أقصى من \"{group.ArabicName ?? group.Name}\"",
+                        "حد أقصى",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return false;
@@ -357,6 +357,6 @@ public static class ModifierSelectionDialog
             summaryParts.Add(modifierName);
         }
 
-        return new ModifierSelectionResult(selections, totalExtra, string.Join("ØŒ ", summaryParts));
+        return new ModifierSelectionResult(selections, totalExtra, string.Join("، ", summaryParts));
     }
 }

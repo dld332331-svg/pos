@@ -47,6 +47,11 @@ TestResults/
 coverage.json
 coverage_fresh.json
 coverage.xml
+coveragereport.json
+
+# ─── BenchmarkDotNet artifacts ────────────────────────────────
+BenchmarkDotNet.Artifacts/
+*.Benchmarks
 
 # ─── OS files ───────────────────────────────────────────────
 Thumbs.db

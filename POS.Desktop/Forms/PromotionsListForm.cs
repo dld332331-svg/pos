@@ -61,7 +61,7 @@ public class PromotionsListForm : UserControl
 
         _btnAdd = new RtlButton
         {
-            Text = "âž• Ø¥Ø¶Ø§ÙØ© Ø¹Ø±Ø¶",
+            Text = "➕ إضافة عرض",
             Type = RtlButton.ButtonType.Primary,
             Width = 140,
             Height = DesignTokens.ControlHeight.Standard
@@ -70,7 +70,7 @@ public class PromotionsListForm : UserControl
 
         _btnRefresh = new RtlButton
         {
-            Text = "ðŸ”„ ØªØ­Ø¯ÙŠØ«",
+            Text = "🔄 تحديث",
             Type = RtlButton.ButtonType.Ghost,
             Width = 90,
             Height = DesignTokens.ControlHeight.Standard,
@@ -80,7 +80,7 @@ public class PromotionsListForm : UserControl
 
         _lblCount = new Label
         {
-            Text = "Ø§Ù„Ø¹Ø±ÙˆØ¶: Ù ",
+            Text = "العروض: ٠",
             Font = DesignTokens.Typography.BodyBold,
             ForeColor = DesignTokens.Colors.TextSecondary,
             AutoSize = true,
@@ -89,7 +89,7 @@ public class PromotionsListForm : UserControl
 
         _txtSearch = new RtlTextBox
         {
-            PlaceholderText = "ðŸ” Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù…...",
+            PlaceholderText = "🔍 بحث بالاسم...",
             Width = 300,
             Height = DesignTokens.ControlHeight.Standard,
             Margin = new Padding(0, 0, DesignTokens.Spacing.Compact, 0)
@@ -118,25 +118,25 @@ public class PromotionsListForm : UserControl
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         };
 
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø§Ø³Ù…", Name = "Name", FillWeight = 18 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù†ÙˆØ¹", Name = "Type", FillWeight = 10 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù‚ÙŠÙ…Ø©", Name = "Value", FillWeight = 8 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ù…Ù†", Name = "StartDate", FillWeight = 12 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø¥Ù„Ù‰", Name = "EndDate", FillWeight = 12 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø£ÙˆÙ„ÙˆÙŠØ©", Name = "Priority", FillWeight = 6 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø§Ù„Ø©", Name = "Status", FillWeight = 8 });
-        _grid.Columns.Add(new DataGridViewButtonColumn { HeaderText = "Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", Name = "Actions", FillWeight = 8, Text = "Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª", UseColumnTextForButtonValue = true });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الاسم", Name = "Name", FillWeight = 18 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "النوع", Name = "Type", FillWeight = 10 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "القيمة", Name = "Value", FillWeight = 8 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "من", Name = "StartDate", FillWeight = 12 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "إلى", Name = "EndDate", FillWeight = 12 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الأولوية", Name = "Priority", FillWeight = 6 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحالة", Name = "Status", FillWeight = 8 });
+        _grid.Columns.Add(new DataGridViewButtonColumn { HeaderText = "إجراءات", Name = "Actions", FillWeight = 8, Text = "إجراءات", UseColumnTextForButtonValue = true });
 
         _grid.CellClick += Grid_CellClick;
         _grid.CellFormatting += Grid_CellFormatting;
 
-        _loadingOverlay = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¹Ø±ÙˆØ¶ Ø§Ù„ØªØ±ÙˆÙŠØ¬ÙŠØ©...");
+        _loadingOverlay = ThemeManager.CreateLoadingPanel("جاري تحميل العروض الترويجية...");
         _loadingOverlay.Visible = false;
 
         _emptyOverlay = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
         _emptyOverlay.Controls.Add(new Label
         {
-            Text = "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ø±ÙˆØ¶ ØªØ±ÙˆÙŠØ¬ÙŠØ©",
+            Text = "لا توجد عروض ترويجية",
             Font = DesignTokens.Typography.SectionTitle,
             ForeColor = DesignTokens.Colors.TextSecondary,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -146,7 +146,7 @@ public class PromotionsListForm : UserControl
         _errorOverlay = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
         _errorMessage = new Label
         {
-            Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¹Ø±ÙˆØ¶",
+            Text = "حدث خطأ أثناء تحميل العروض",
             Font = DesignTokens.Typography.SectionTitle,
             ForeColor = DesignTokens.Colors.Error,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -154,7 +154,7 @@ public class PromotionsListForm : UserControl
         };
         var btnRetry = new RtlButton
         {
-            Text = "ðŸ”„ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©",
+            Text = "🔄 إعادة المحاولة",
             Type = RtlButton.ButtonType.Primary,
             Width = 160,
             Height = DesignTokens.ControlHeight.Standard,
@@ -165,7 +165,7 @@ public class PromotionsListForm : UserControl
         _errorOverlay.Controls.Add(_errorMessage);
 
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
-        _permissionPanel.Controls.Add(new Label { Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¹Ø±Ø¶ Ø§Ù„Ø¹Ø±ÙˆØ¶ Ø§Ù„ØªØ±ÙˆÙŠØ¬ÙŠØ©", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
+        _permissionPanel.Controls.Add(new Label { Text = "ليس لديك صلاحية لعرض العروض الترويجية", Font = DesignTokens.Typography.SectionTitle, ForeColor = DesignTokens.Colors.TextSecondary, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill });
 
         Controls.Add(_loadingOverlay);
         Controls.Add(_emptyOverlay);
@@ -198,7 +198,7 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            _errorMessage.Text = $"Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¹Ø±ÙˆØ¶: {ex.Message}";
+            _errorMessage.Text = $"حدث خطأ أثناء تحميل العروض: {ex.Message}";
             SetState(PromoState.Error);
         }
     }
@@ -214,7 +214,7 @@ public class PromotionsListForm : UserControl
                 p.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
         }
         PopulateGrid();
-        _lblCount.Text = $"Ø§Ù„Ø¹Ø±ÙˆØ¶: {_filteredPromotions.Count}";
+        _lblCount.Text = $"العروض: {_filteredPromotions.Count}";
         SetState(_filteredPromotions.Count > 0 ? PromoState.Loaded : PromoState.Empty);
     }
 
@@ -225,18 +225,18 @@ public class PromotionsListForm : UserControl
         {
             var typeLabel = p.Type switch
             {
-                "Percentage" => "Ù†Ø³Ø¨Ø© Ù…Ø¦ÙˆÙŠØ©",
-                "FixedAmount" => "Ù…Ø¨Ù„Øº Ø«Ø§Ø¨Øª",
-                "BuyXGetY" => "Ø§Ø´ØªØ± X ÙˆØ§Ø­ØµÙ„ Ø¹Ù„Ù‰ Y",
-                "MultiBuy" => "Ø®ØµÙ… Ø§Ù„ÙƒÙ…ÙŠØ©",
+                "Percentage" => "نسبة مئوية",
+                "FixedAmount" => "مبلغ ثابت",
+                "BuyXGetY" => "اشتر X واحصل على Y",
+                "MultiBuy" => "خصم الكمية",
                 _ => p.Type
             };
-            var valueDisplay = p.Type == "Percentage" ? $"{p.Value}%" : $"{p.Value} Ø¯.Ø£";
-            var status = p.IsActive ? "Ù†Ø´Ø·" : "Ù…ØªÙˆÙ‚Ù";
+            var valueDisplay = p.Type == "Percentage" ? $"{p.Value}%" : $"{p.Value} د.أ";
+            var status = p.IsActive ? "نشط" : "متوقف";
 
             _grid.Rows.Add(p.Name, typeLabel, valueDisplay,
                 p.StartDate.ToString("yyyy-MM-dd"), p.EndDate.ToString("yyyy-MM-dd"),
-                p.Priority, status, "Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª");
+                p.Priority, status, "إجراءات");
             _grid.Rows[_grid.Rows.Count - 1].Tag = p;
         }
     }
@@ -247,7 +247,7 @@ public class PromotionsListForm : UserControl
         if (_grid.Columns[e.ColumnIndex].Name == "Status")
         {
             var text = e.Value?.ToString();
-            e.CellStyle.ForeColor = text == "Ù†Ø´Ø·" ? DesignTokens.Colors.Success : DesignTokens.Colors.Disabled;
+            e.CellStyle.ForeColor = text == "نشط" ? DesignTokens.Colors.Success : DesignTokens.Colors.Disabled;
         }
     }
 
@@ -260,20 +260,20 @@ public class PromotionsListForm : UserControl
         if (promo == null) return;
 
         var menu = new ContextMenuStrip { RightToLeft = RightToLeft.Yes };
-        var editItem = new ToolStripMenuItem("âœï¸ ØªØ¹Ø¯ÙŠÙ„");
+        var editItem = new ToolStripMenuItem("✏️ تعديل");
         editItem.Click += (s, e) => ShowPromotionDialog(promo);
         menu.Items.Add(editItem);
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var toggleText = promo.IsActive ? "Ø¥ÙŠÙ‚Ø§Ù" : "ØªÙØ¹ÙŠÙ„";
-        var toggleItem = new ToolStripMenuItem(promo.IsActive ? "â¸ Ø¥ÙŠÙ‚Ø§Ù" : "â–¶ï¸ ØªÙØ¹ÙŠÙ„");
+        var toggleText = promo.IsActive ? "إيقاف" : "تفعيل";
+        var toggleItem = new ToolStripMenuItem(promo.IsActive ? "⏸ إيقاف" : "▶️ تفعيل");
         toggleItem.Click += (s, e) => TogglePromotion(promo);
         menu.Items.Add(toggleItem);
 
         menu.Items.Add(new ToolStripSeparator());
 
-        var deleteItem = new ToolStripMenuItem("ðŸ—‘ Ø­Ø°Ù");
+        var deleteItem = new ToolStripMenuItem("🗑 حذف");
         deleteItem.Click += (s, e) => DeletePromotion(promo);
         menu.Items.Add(deleteItem);
 
@@ -284,7 +284,7 @@ public class PromotionsListForm : UserControl
     private void ShowPromotionDialog(PromotionDto? existing)
     {
         var isEdit = existing != null;
-        var dialog = new RtlDialog(isEdit ? "ØªØ¹Ø¯ÙŠÙ„ Ø¹Ø±Ø¶ ØªØ±ÙˆÙŠØ¬ÙŠ" : "Ø¥Ø¶Ø§ÙØ© Ø¹Ø±Ø¶ ØªØ±ÙˆÙŠØ¬ÙŠ Ø¬Ø¯ÙŠØ¯", 520, 520);
+        var dialog = new RtlDialog(isEdit ? "تعديل عرض ترويجي" : "إضافة عرض ترويجي جديد", 520, 520);
 
         var layout = new TableLayoutPanel
         {
@@ -300,53 +300,53 @@ public class PromotionsListForm : UserControl
         for (int i = 0; i < 11; i++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
         int row = 0;
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ø§Ø³Ù…:"), 0, row);
+        layout.Controls.Add(CreateLabel("الاسم:"), 0, row);
         var txtName = new RtlTextBox { Text = existing?.Name ?? "", Dock = DockStyle.Fill, IsRequired = true };
         layout.Controls.Add(txtName, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„ÙˆØµÙ:"), 0, row);
+        layout.Controls.Add(CreateLabel("الوصف:"), 0, row);
         var txtDesc = new RtlTextBox { Text = existing?.Description ?? "", Dock = DockStyle.Fill };
         layout.Controls.Add(txtDesc, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ù†ÙˆØ¹:"), 0, row);
+        layout.Controls.Add(CreateLabel("النوع:"), 0, row);
         var cmbType = new RtlComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
         cmbType.Items.AddRange(new object[] { "Percentage", "FixedAmount" });
         cmbType.SelectedItem = existing?.Type ?? "Percentage";
         layout.Controls.Add(cmbType, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ù‚ÙŠÙ…Ø©:"), 0, row);
+        layout.Controls.Add(CreateLabel("القيمة:"), 0, row);
         var txtValue = new RtlTextBox { Text = existing?.Value.ToString() ?? "10", Dock = DockStyle.Fill };
         layout.Controls.Add(txtValue, 1, row++);
 
-        layout.Controls.Add(CreateLabel("ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©:"), 0, row);
+        layout.Controls.Add(CreateLabel("تاريخ البداية:"), 0, row);
         var dtStart = new DateTimePicker { Value = existing?.StartDate ?? DateTime.Today, Dock = DockStyle.Fill, RightToLeft = RightToLeft.Yes, Format = DateTimePickerFormat.Short };
         layout.Controls.Add(dtStart, 1, row++);
 
-        layout.Controls.Add(CreateLabel("ØªØ§Ø±ÙŠØ® Ø§Ù„Ù†Ù‡Ø§ÙŠØ©:"), 0, row);
+        layout.Controls.Add(CreateLabel("تاريخ النهاية:"), 0, row);
         var dtEnd = new DateTimePicker { Value = existing?.EndDate ?? DateTime.Today.AddMonths(1), Dock = DockStyle.Fill, RightToLeft = RightToLeft.Yes, Format = DateTimePickerFormat.Short };
         layout.Controls.Add(dtEnd, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ø£ÙˆÙ„ÙˆÙŠØ©:"), 0, row);
+        layout.Controls.Add(CreateLabel("الأولوية:"), 0, row);
         var txtPriority = new RtlTextBox { Text = existing?.Priority.ToString() ?? "0", Dock = DockStyle.Fill };
         layout.Controls.Add(txtPriority, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰ Ù„Ù„Ø´Ø±Ø§Ø¡:"), 0, row);
+        layout.Controls.Add(CreateLabel("الحد الأدنى للشراء:"), 0, row);
         var txtMinPurchase = new RtlTextBox
         {
             Text = existing?.MinPurchaseAmount?.ToString() ?? "",
             Dock = DockStyle.Fill,
-            PlaceholderText = "0 = Ø¨Ø¯ÙˆÙ† Ø­Ø¯ Ø£Ø¯Ù†Ù‰"
+            PlaceholderText = "0 = بدون حد أدنى"
         };
         layout.Controls.Add(txtMinPurchase, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…:"), 0, row);
+        layout.Controls.Add(CreateLabel("الحد الأقصى للاستخدام:"), 0, row);
         var txtMaxApps = new RtlTextBox { Text = existing?.MaxApplications.ToString() ?? "99", Dock = DockStyle.Fill };
         layout.Controls.Add(txtMaxApps, 1, row++);
 
-        layout.Controls.Add(CreateLabel("Ø­Ø§Ù„Ø© Ø§Ù„Ø¹Ø±Ø¶:"), 0, row);
+        layout.Controls.Add(CreateLabel("حالة العرض:"), 0, row);
         var chkActive = new CheckBox
         {
-            Text = "Ø§Ù„Ø¹Ø±Ø¶ Ù†Ø´Ø·",
+            Text = "العرض نشط",
             RightToLeft = RightToLeft.Yes,
             Font = DesignTokens.Typography.Body,
             Checked = existing?.IsActive ?? true,
@@ -357,21 +357,21 @@ public class PromotionsListForm : UserControl
 
         dialog.ContentArea.Controls.Add(layout);
 
-        dialog.AddAction(isEdit ? "ØªØ­Ø¯ÙŠØ«" : "Ø¥Ø¶Ø§ÙØ©", async (s, e) =>
+        dialog.AddAction(isEdit ? "تحديث" : "إضافة", async (s, e) =>
         {
             if (string.IsNullOrWhiteSpace(txtName.Text))
             {
-                RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ø§Ø³Ù… Ø§Ù„Ø¹Ø±Ø¶", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                RtlMessageBox.Show("يرجى إدخال اسم العرض", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             if (!decimal.TryParse(txtValue.Text.Trim(), out var value) || value <= 0)
             {
-                RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø¥Ø¯Ø®Ø§Ù„ Ù‚ÙŠÙ…Ø© ØµØ­ÙŠØ­Ø© Ø£ÙƒØ¨Ø± Ù…Ù† ØµÙØ±", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                RtlMessageBox.Show("يرجى إدخال قيمة صحيحة أكبر من صفر", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             if (dtEnd.Value <= dtStart.Value)
             {
-                RtlMessageBox.Show("ØªØ§Ø±ÙŠØ® Ø§Ù„Ù†Ù‡Ø§ÙŠØ© ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø¨Ø¹Ø¯ ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                RtlMessageBox.Show("تاريخ النهاية يجب أن يكون بعد تاريخ البداية", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -404,10 +404,10 @@ public class PromotionsListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"Ø®Ø·Ø£: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
-        dialog.AddAction("Ø¥Ù„ØºØ§Ø¡", (s, e) => dialog.Close(), false);
+        dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
 
         dialog.ShowDialog(this.FindForm());
     }
@@ -426,15 +426,15 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"Ø®Ø·Ø£: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
     private void DeletePromotion(PromotionDto promo)
     {
         var result = RtlDialog.ShowDestructiveConfirm(
-            "Ø­Ø°Ù Ø¹Ø±Ø¶ ØªØ±ÙˆÙŠØ¬ÙŠ",
-            $"Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ø§Ù„Ø¹Ø±Ø¶ \"{promo.Name}\"ØŸ"
+            "حذف عرض ترويجي",
+            $"هل أنت متأكد من حذف العرض \"{promo.Name}\"؟"
         );
         if (result == DialogResult.OK)
         {
@@ -452,7 +452,7 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"Ø®Ø·Ø£: {ex.Message}", "Ø®Ø·Ø£", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

@@ -93,7 +93,7 @@ public class ReportForm : UserControl
 
         var listTitle = new Label
         {
-            Text = "ðŸ“Š Ø£Ù†ÙˆØ§Ø¹ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±",
+            Text = "📊 أنواع التقارير",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.TextPrimaryColor,
             Dock = DockStyle.Top,
@@ -114,10 +114,10 @@ public class ReportForm : UserControl
 
         _reportTypeList.Items.AddRange(new object[]
         {
-            "ðŸ’° ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª",
-            "ðŸ“¦ ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù…Ø®Ø²ÙˆÙ†",
-            "ðŸ“ˆ ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø±Ø¨Ø­ÙŠØ©",
-            "ðŸ’µ ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù†Ù‚Ø¯ÙŠØ©"
+            "💰 تقرير المبيعات",
+            "📦 تقرير المخزون",
+            "📈 تقرير الربحية",
+            "💵 تقرير النقدية"
         });
         _reportTypeList.SelectedIndex = 0;
         _reportTypeList.SelectedIndexChanged += (s, e) =>
@@ -150,23 +150,23 @@ public class ReportForm : UserControl
             Margin = new Padding(0, 0, 0, DesignTokens.SpacingSM)
         };
 
-        var fromLabel = new Label { Text = "Ù…Ù† ØªØ§Ø±ÙŠØ®:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(460, 10), Size = new Size(80, 22), TextAlign = ContentAlignment.MiddleRight };
+        var fromLabel = new Label { Text = "من تاريخ:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(460, 10), Size = new Size(80, 22), TextAlign = ContentAlignment.MiddleRight };
         _fromDatePicker = new DateTimePicker { Location = new Point(370, 8), Size = new Size(85, 26), Format = DateTimePickerFormat.Short, RightToLeft = RightToLeft.Yes, Value = DateTime.Today.AddDays(-30) };
 
-        var toLabel = new Label { Text = "Ø¥Ù„Ù‰ ØªØ§Ø±ÙŠØ®:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(290, 10), Size = new Size(75, 22), TextAlign = ContentAlignment.MiddleRight };
+        var toLabel = new Label { Text = "إلى تاريخ:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(290, 10), Size = new Size(75, 22), TextAlign = ContentAlignment.MiddleRight };
         _toDatePicker = new DateTimePicker { Location = new Point(200, 8), Size = new Size(85, 26), Format = DateTimePickerFormat.Short, RightToLeft = RightToLeft.Yes, Value = DateTime.Today };
 
-        var userLabel = new Label { Text = "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(460, 44), Size = new Size(80, 22), TextAlign = ContentAlignment.MiddleRight };
+        var userLabel = new Label { Text = "المستخدم:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(460, 44), Size = new Size(80, 22), TextAlign = ContentAlignment.MiddleRight };
         _userFilterCombo = new ComboBox { Location = new Point(370, 42), Size = new Size(85, 26), DropDownStyle = ComboBoxStyle.DropDownList, RightToLeft = RightToLeft.Yes };
-        _userFilterCombo.Items.AddRange(new object[] { "Ø§Ù„ÙƒÙ„", "Ø§Ù„Ù…Ø¯ÙŠØ±", "ÙƒØ§Ø´ÙŠØ± Ù¡", "ÙƒØ§Ø´ÙŠØ± Ù¢" });
+        _userFilterCombo.Items.AddRange(new object[] { "الكل", "المدير", "كاشير ١", "كاشير ٢" });
         _userFilterCombo.SelectedIndex = 0;
 
-        var catLabel = new Label { Text = "Ø§Ù„ÙØ¦Ø©:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(290, 44), Size = new Size(75, 22), TextAlign = ContentAlignment.MiddleRight };
+        var catLabel = new Label { Text = "الفئة:", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, Location = new Point(290, 44), Size = new Size(75, 22), TextAlign = ContentAlignment.MiddleRight };
         _categoryFilterCombo = new ComboBox { Location = new Point(200, 42), Size = new Size(85, 26), DropDownStyle = ComboBoxStyle.DropDownList, RightToLeft = RightToLeft.Yes };
-        _categoryFilterCombo.Items.AddRange(new object[] { "Ø§Ù„ÙƒÙ„", "Ù…Ø´Ø±ÙˆØ¨Ø§Øª Ø³Ø§Ø®Ù†Ø©", "Ù…Ø´Ø±ÙˆØ¨Ø§Øª Ø¨Ø§Ø±Ø¯Ø©", "ÙˆØ¬Ø¨Ø§Øª", "Ø­Ù„ÙˆÙŠØ§Øª" });
+        _categoryFilterCombo.Items.AddRange(new object[] { "الكل", "مشروبات ساخنة", "مشروبات باردة", "وجبات", "حلويات" });
         _categoryFilterCombo.SelectedIndex = 0;
 
-        _generateButton = new Button { Text = "ðŸ“Š Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±", Font = DesignTokens.ButtonFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 15), Size = new Size(140, 50), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _generateButton = new Button { Text = "📊 إنشاء التقرير", Font = DesignTokens.ButtonFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 15), Size = new Size(140, 50), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _generateButton.Click += async (s, e) => await GenerateReportAsync();
 
         _filterPanel.Controls.AddRange(new Control[] { fromLabel, _fromDatePicker, toLabel, _toDatePicker, userLabel, _userFilterCombo, catLabel, _categoryFilterCombo, _generateButton });
@@ -180,9 +180,9 @@ public class ReportForm : UserControl
             Margin = new Padding(0, 0, 0, DesignTokens.SpacingSM)
         };
 
-        _exportButton = new Button { Text = "ðŸ“¥ ØªØµØ¯ÙŠØ±", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(100, 32), Dock = DockStyle.Left, BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, Cursor = Cursors.Hand, Enabled = false };
+        _exportButton = new Button { Text = "📥 تصدير", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(100, 32), Dock = DockStyle.Left, BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, Cursor = Cursors.Hand, Enabled = false };
 
-        _printButton = new Button { Text = "ðŸ–¨ï¸ Ø·Ø¨Ø§Ø¹Ø©", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(100, 32), Dock = DockStyle.Left, BackColor = DesignTokens.InfoColor, ForeColor = Color.White, Cursor = Cursors.Hand, Enabled = false, Margin = new Padding(0, 0, DesignTokens.SpacingSM, 0) };
+        _printButton = new Button { Text = "🖨️ طباعة", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Size = new Size(100, 32), Dock = DockStyle.Left, BackColor = DesignTokens.InfoColor, ForeColor = Color.White, Cursor = Cursors.Hand, Enabled = false, Margin = new Padding(0, 0, DesignTokens.SpacingSM, 0) };
         _printButton.Click += (s, e) => PrintRequested?.Invoke(this, EventArgs.Empty);
 
         actionsPanel.Controls.Add(_exportButton);
@@ -200,7 +200,7 @@ public class ReportForm : UserControl
 
         _summaryLabel = new Label
         {
-            Text = "Ø§Ø®ØªØ± Ù†ÙˆØ¹ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø«Ù… Ø§Ø¶ØºØ· Ø¥Ù†Ø´Ø§Ø¡",
+            Text = "اختر نوع التقرير ثم اضغط إنشاء",
             Font = DesignTokens.DefaultFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             Dock = DockStyle.Fill,
@@ -238,7 +238,7 @@ public class ReportForm : UserControl
 
         var chartLabel = new Label
         {
-            Text = "ðŸ“ˆ Ù…Ø®Ø·Ø· Ø¨ÙŠØ§Ù†ÙŠ (Ø³ÙŠØªÙ… Ø¹Ø±Ø¶ Ø§Ù„Ø±Ø³Ù… Ø§Ù„Ø¨ÙŠØ§Ù†ÙŠ Ù‡Ù†Ø§)",
+            Text = "📈 مخطط بياني (سيتم عرض الرسم البياني هنا)",
             Font = DesignTokens.SubheadingFont,
             ForeColor = DesignTokens.TextSecondaryColor,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -247,13 +247,13 @@ public class ReportForm : UserControl
         _chartPlaceholder.Controls.Add(chartLabel);
 
         // Overlay panels
-        _loadingPanel = CreateOverlay("Ø¬Ø§Ø±ÙŠ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±...");
+        _loadingPanel = CreateOverlay("جاري إنشاء التقرير...");
         _loadingPanel.Visible = false;
-        _emptyPanel = CreateOverlay("Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª Ù„Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù…Ø­Ø¯Ø¯");
+        _emptyPanel = CreateOverlay("لا توجد بيانات للتقرير المحدد");
         _emptyPanel.Visible = false;
-        _errorPanel = CreateOverlayError("Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±");
+        _errorPanel = CreateOverlayError("حدث خطأ أثناء إنشاء التقرير");
         _errorPanel.Visible = false;
-        _permissionPanel = CreateOverlay("Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±");
+        _permissionPanel = CreateOverlay("ليس لديك صلاحية لعرض التقارير");
         _permissionPanel.Visible = false;
 
         _rightPanel.Controls.Add(_loadingPanel);
@@ -281,7 +281,7 @@ public class ReportForm : UserControl
     {
         var panel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor };
         var lbl = new Label { Text = text, Font = DesignTokens.SubheadingFont, ForeColor = DesignTokens.ErrorColor, Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
-        var btn = new Button { Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand, Anchor = AnchorStyles.None };
+        var btn = new Button { Text = "إعادة المحاولة", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand, Anchor = AnchorStyles.None };
         btn.Click += async (s, e) => await GenerateReportAsync();
         panel.Controls.Add(btn);
         panel.Controls.Add(lbl);
@@ -361,61 +361,61 @@ public class ReportForm : UserControl
     private void PopulateSalesReport(SalesReportDto report)
     {
         _resultsGrid.Columns.Clear();
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ØªØ§Ø±ÙŠØ®", Name = "Date", FillWeight = 25 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª", Name = "Sales", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©", Name = "Tax", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø®ØµÙ…", Name = "Discount", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø¹Ø¯Ø¯ Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª", Name = "Count", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "التاريخ", Name = "Date", FillWeight = 25 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المبيعات", Name = "Sales", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الضريبة", Name = "Tax", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الخصم", Name = "Discount", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "عدد العمليات", Name = "Count", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
         _resultsGrid.Rows.Clear();
 
         foreach (var d in report.DailySales)
             _resultsGrid.Rows.Add(d.Date.ToString("yyyy/MM/dd"), d.TotalSales, d.TotalTax, d.TotalDiscount, d.TransactionCount);
 
-        _summaryLabel.Text = $"Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ: {report.GrandTotal:N3} JOD | Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©: {report.GrandTax:N3} | Ø§Ù„Ø®ØµÙˆÙ…Ø§Øª: {report.GrandDiscount:N3} | Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª: {report.TotalTransactions}";
+        _summaryLabel.Text = $"الإجمالي: {report.GrandTotal:N3} JOD | الضريبة: {report.GrandTax:N3} | الخصومات: {report.GrandDiscount:N3} | العمليات: {report.TotalTransactions}";
     }
 
     private void PopulateInventoryReport(InventoryReportDto report)
     {
         _resultsGrid.Columns.Clear();
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ù†ØªØ¬", Name = "Product", FillWeight = 30 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ÙƒÙ…ÙŠØ©", Name = "Qty", FillWeight = 15 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…ØªØ§Ø­", Name = "Available", FillWeight = 15 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰", Name = "MinStock", FillWeight = 15 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø§Ù„Ø©", Name = "Status", FillWeight = 15 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المنتج", Name = "Product", FillWeight = 30 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الكمية", Name = "Qty", FillWeight = 15 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المتاح", Name = "Available", FillWeight = 15 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحد الأدنى", Name = "MinStock", FillWeight = 15 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحالة", Name = "Status", FillWeight = 15 });
         _resultsGrid.Rows.Clear();
 
         foreach (var item in report.Items)
-            _resultsGrid.Rows.Add(item.ProductName, item.Quantity, item.AvailableQuantity, item.MinStock, item.IsLowStock ? "Ù…Ù†Ø®ÙØ¶" : "Ù…ØªÙˆÙØ±");
+            _resultsGrid.Rows.Add(item.ProductName, item.Quantity, item.AvailableQuantity, item.MinStock, item.IsLowStock ? "منخفض" : "متوفر");
 
-        _summaryLabel.Text = $"Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£ØµÙ†Ø§Ù: {report.TotalItems} | Ù…Ø®Ø²ÙˆÙ† Ù…Ù†Ø®ÙØ¶: {report.LowStockCount}";
+        _summaryLabel.Text = $"إجمالي الأصناف: {report.TotalItems} | مخزون منخفض: {report.LowStockCount}";
         _chartPlaceholder.Visible = false;
     }
 
     private void PopulateProfitabilityReport(ProfitabilityReportDto report)
     {
         _resultsGrid.Columns.Clear();
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ù†ØªØ¬", Name = "Product", FillWeight = 25 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª", Name = "Sales", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ØªÙƒÙ„ÙØ©", Name = "Cost", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø±Ø¨Ø­", Name = "Profit", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù‡Ø§Ù…Ø´ %", Name = "Margin", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "P1" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المنتج", Name = "Product", FillWeight = 25 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المبيعات", Name = "Sales", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "التكلفة", Name = "Cost", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الربح", Name = "Profit", FillWeight = 18, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الهامش %", Name = "Margin", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "P1" } });
         _resultsGrid.Rows.Clear();
 
         foreach (var p in report.TopProducts)
             _resultsGrid.Rows.Add(p.ProductName, p.Sales, p.Cost, p.Profit, p.Margin);
 
-        _summaryLabel.Text = $"Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª: {report.TotalSales:N2} | Ø§Ù„ØªÙƒÙ„ÙØ©: {report.TotalCost:N2} | Ø§Ù„Ø±Ø¨Ø­: {report.GrossProfit:N2} | Ø§Ù„Ù‡Ø§Ù…Ø´: {report.ProfitMargin:P1}";
+        _summaryLabel.Text = $"المبيعات: {report.TotalSales:N2} | التكلفة: {report.TotalCost:N2} | الربح: {report.GrossProfit:N2} | الهامش: {report.ProfitMargin:P1}";
         _chartPlaceholder.Visible = false;
     }
 
     private void PopulateSampleReport()
     {
         _resultsGrid.Columns.Clear();
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ØªØ§Ø±ÙŠØ®", Name = "Date", FillWeight = 25 });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª", Name = "Sales", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©", Name = "Tax", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø®ØµÙ…", Name = "Discount", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
-        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø¹Ø¯Ø¯ Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª", Name = "Count", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "التاريخ", Name = "Date", FillWeight = 25 });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المبيعات", Name = "Sales", FillWeight = 20, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الضريبة", Name = "Tax", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الخصم", Name = "Discount", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Format = "N3" } });
+        _resultsGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "عدد العمليات", Name = "Count", FillWeight = 15, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
         _resultsGrid.Rows.Clear();
 
         var rand = new Random();
@@ -429,18 +429,18 @@ public class ReportForm : UserControl
             _resultsGrid.Rows.Add(date.ToString("yyyy/MM/dd"), sales, tax, discount, count);
         }
 
-        _summaryLabel.Text = "Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª: 12,450.000 JOD | Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª: 95";
+        _summaryLabel.Text = "إجمالي المبيعات: 12,450.000 JOD | إجمالي العمليات: 95";
     }
 
     private async void ExportReportAsync(object? sender, EventArgs e)
     {
         if (_reportExporter is null || _resultsGrid.Rows.Count == 0) return;
 
-        using var formatDialog = new Form { Text = "Ø§Ø®ØªØ± ØµÙŠØºØ© Ø§Ù„ØªØµØ¯ÙŠØ±", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MinimizeBox = false, MaximizeBox = false, Size = new Size(300, 160), RightToLeft = RightToLeft.Yes };
+        using var formatDialog = new Form { Text = "اختر صيغة التصدير", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MinimizeBox = false, MaximizeBox = false, Size = new Size(300, 160), RightToLeft = RightToLeft.Yes };
         var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(20), WrapContents = false };
-        var lbl = new Label { Text = "Ø§Ø®ØªØ± ØµÙŠØºØ© Ø§Ù„Ù…Ù„Ù:", Font = DesignTokens.DefaultFont, AutoSize = true };
-        var pdfBtn = new Button { Text = "ðŸ“„ PDF", Font = DesignTokens.ButtonFont, Size = new Size(200, 40), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-        var xlsxBtn = new Button { Text = "ðŸ“Š Excel", Font = DesignTokens.ButtonFont, Size = new Size(200, 40), BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+        var lbl = new Label { Text = "اختر صيغة الملف:", Font = DesignTokens.DefaultFont, AutoSize = true };
+        var pdfBtn = new Button { Text = "📄 PDF", Font = DesignTokens.ButtonFont, Size = new Size(200, 40), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+        var xlsxBtn = new Button { Text = "📊 Excel", Font = DesignTokens.ButtonFont, Size = new Size(200, 40), BackColor = DesignTokens.SuccessColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
 
         pdfBtn.Click += (s, args) => { formatDialog.DialogResult = DialogResult.Yes; formatDialog.Close(); };
         xlsxBtn.Click += (s, args) => { formatDialog.DialogResult = DialogResult.No; formatDialog.Close(); };
@@ -462,8 +462,8 @@ public class ReportForm : UserControl
         var summary = _summaryLabel.Text;
 
         var data = isPdf
-            ? _reportExporter.ExportToPdf(_selectedReportType + " ØªÙ‚Ø±ÙŠØ±", columns, rows, summary)
-            : _reportExporter.ExportToExcel(_selectedReportType + " ØªÙ‚Ø±ÙŠØ±", columns, rows, summary);
+            ? _reportExporter.ExportToPdf(_selectedReportType + " تقرير", columns, rows, summary)
+            : _reportExporter.ExportToExcel(_selectedReportType + " تقرير", columns, rows, summary);
 
         var extension = isPdf ? "pdf" : "xlsx";
         var filter = isPdf ? "PDF files (*.pdf)|*.pdf" : "Excel files (*.xlsx)|*.xlsx";
@@ -472,13 +472,13 @@ public class ReportForm : UserControl
         {
             Filter = filter,
             DefaultExt = extension,
-            FileName = $"ØªÙ‚Ø±ÙŠØ±_{_selectedReportType}_{DateTime.Now:yyyyMMdd}.{extension}"
+            FileName = $"تقرير_{_selectedReportType}_{DateTime.Now:yyyyMMdd}.{extension}"
         };
 
         if (saveDialog.ShowDialog() == DialogResult.OK)
         {
             await File.WriteAllBytesAsync(saveDialog.FileName, data);
-            RtlMessageBox.Show($"ØªÙ… ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø¨Ù†Ø¬Ø§Ø­ Ø¥Ù„Ù‰:\n{saveDialog.FileName}", "ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø±ÙŠØ±", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
+            RtlMessageBox.Show($"تم تصدير التقرير بنجاح إلى:\n{saveDialog.FileName}", "تصدير التقرير", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
     }
 }

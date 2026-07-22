@@ -93,7 +93,7 @@ public class InventoryForm : UserControl
             Size = new Size(220, 28),
             Font = DesignTokens.DefaultFont,
             RightToLeft = RightToLeft.Yes,
-            PlaceholderText = "ðŸ” Ø¨Ø­Ø« Ø¨Ø§Ø³Ù… Ø§Ù„Ù…Ù†ØªØ¬..."
+            PlaceholderText = "🔍 بحث باسم المنتج..."
         };
         _searchTextBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; _ = LoadStockAsync(); } };
 
@@ -105,19 +105,19 @@ public class InventoryForm : UserControl
             Font = DesignTokens.DefaultFont,
             RightToLeft = RightToLeft.Yes
         };
-        _stockFilterCombo.Items.AddRange(new object[] { "Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª", "Ù…ØªÙˆÙØ±", "Ù…Ù†Ø®ÙØ¶", "Ù†ÙØ°" });
+        _stockFilterCombo.Items.AddRange(new object[] { "جميع الحالات", "متوفر", "منخفض", "نفذ" });
         _stockFilterCombo.SelectedIndex = 0;
 
-        _searchButton = new Button { Text = "Ø¨Ø­Ø«", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(475, 10), Size = new Size(60, 28), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _searchButton = new Button { Text = "بحث", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(475, 10), Size = new Size(60, 28), BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _searchButton.Click += async (s, e) => await LoadStockAsync();
 
-        _refreshButton = new Button { Text = "ðŸ”„", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(540, 10), Size = new Size(28, 28), BackColor = DesignTokens.CardColor, Cursor = Cursors.Hand };
+        _refreshButton = new Button { Text = "🔄", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(540, 10), Size = new Size(28, 28), BackColor = DesignTokens.CardColor, Cursor = Cursors.Hand };
         _refreshButton.Click += async (s, e) => await LoadStockAsync();
 
-        _adjustButton = new Button { Text = "ðŸ“ ØªØ¹Ø¯ÙŠÙ„ Ù…Ø®Ø²ÙˆÙ†", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 8), Size = new Size(110, 32), BackColor = DesignTokens.InfoColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _adjustButton = new Button { Text = "📏 تعديل مخزون", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(10, 8), Size = new Size(110, 32), BackColor = DesignTokens.InfoColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _adjustButton.Click += AdjustButton_Click;
 
-        _wasteButton = new Button { Text = "ðŸ—‘ï¸ ØªØ³Ø¬ÙŠÙ„ Ù‡Ø§Ù„Ùƒ", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(125, 8), Size = new Size(110, 32), BackColor = DesignTokens.WarningColor, ForeColor = Color.White, Cursor = Cursors.Hand };
+        _wasteButton = new Button { Text = "🗑️ تسجيل هالك", Font = DesignTokens.DefaultFont, FlatStyle = FlatStyle.Flat, Location = new Point(125, 8), Size = new Size(110, 32), BackColor = DesignTokens.WarningColor, ForeColor = Color.White, Cursor = Cursors.Hand };
         _wasteButton.Click += WasteButton_Click;
 
         _toolbarPanel.Controls.AddRange(new Control[] { _searchButton, _refreshButton, _searchTextBox, _stockFilterCombo, _adjustButton, _wasteButton });
@@ -133,9 +133,9 @@ public class InventoryForm : UserControl
             FlowDirection = FlowDirection.RightToLeft
         };
 
-        _totalItemsLabel = new Label { Text = "ðŸ“¦ Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£ØµÙ†Ø§Ù: Ù ", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.SpacingLG, 0) };
-        _lowStockLabel = new Label { Text = "âš ï¸ Ù…Ø®Ø²ÙˆÙ† Ù…Ù†Ø®ÙØ¶: Ù ", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.WarningColor, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.SpacingLG, 0) };
-        _outOfStockLabel = new Label { Text = "âŒ Ù†ÙØ° Ù…Ù† Ø§Ù„Ù…Ø®Ø²ÙˆÙ†: Ù ", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.ErrorColor, AutoSize = true };
+        _totalItemsLabel = new Label { Text = "📦 إجمالي الأصناف: ٠", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.TextPrimaryColor, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.SpacingLG, 0) };
+        _lowStockLabel = new Label { Text = "⚠️ مخزون منخفض: ٠", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.WarningColor, AutoSize = true, Margin = new Padding(0, 0, DesignTokens.SpacingLG, 0) };
+        _outOfStockLabel = new Label { Text = "❌ نفذ من المخزون: ٠", Font = DesignTokens.DefaultFont, ForeColor = DesignTokens.ErrorColor, AutoSize = true };
 
         _summaryPanel.Controls.AddRange(new Control[] { _totalItemsLabel, _lowStockLabel, _outOfStockLabel });
 
@@ -147,7 +147,7 @@ public class InventoryForm : UserControl
         };
 
         // Stock tab
-        _stockTabPage = new TabPage { Text = "ðŸ“Š Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø§Ù„Ø­Ø§Ù„ÙŠ", Padding = new Padding(DesignTokens.SpacingSM) };
+        _stockTabPage = new TabPage { Text = "📊 المخزون الحالي", Padding = new Padding(DesignTokens.SpacingSM) };
 
         _stockGrid = new DataGridView
         {
@@ -165,20 +165,20 @@ public class InventoryForm : UserControl
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         };
 
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ù†ØªØ¬", Name = "Product", FillWeight = 22 });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø®Ø²ÙˆÙ† Ø§Ù„Ø­Ø§Ù„ÙŠ", Name = "CurrentStock", FillWeight = 12, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ù…Ø­Ø¬ÙˆØ²", Name = "Reserved", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ù…ØªØ§Ø­", Name = "Available", FillWeight = 12, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ø¯Ù†Ù‰", Name = "MinStock", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø­Ø§Ù„Ø©", Name = "Status", FillWeight = 12 });
-        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø¢Ø®Ø± Ø­Ø±ÙƒØ©", Name = "LastMovement", FillWeight = 22 });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المنتج", Name = "Product", FillWeight = 22 });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المخزون الحالي", Name = "CurrentStock", FillWeight = 12, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "محجوز", Name = "Reserved", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "متاح", Name = "Available", FillWeight = 12, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحد الأدنى", Name = "MinStock", FillWeight = 10, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الحالة", Name = "Status", FillWeight = 12 });
+        _stockGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "آخر حركة", Name = "LastMovement", FillWeight = 22 });
         _stockGrid.CellFormatting += StockGrid_CellFormatting;
         _stockGrid.CellDoubleClick += StockGrid_CellDoubleClick;
 
         _stockTabPage.Controls.Add(_stockGrid);
 
         // Movement history tab
-        _movementTabPage = new TabPage { Text = "ðŸ“‹ Ø³Ø¬Ù„ Ø§Ù„Ø­Ø±ÙƒØ§Øª", Padding = new Padding(DesignTokens.SpacingSM) };
+        _movementTabPage = new TabPage { Text = "📋 سجل الحركات", Padding = new Padding(DesignTokens.SpacingSM) };
 
         _movementGrid = new DataGridView
         {
@@ -196,14 +196,14 @@ public class InventoryForm : UserControl
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         };
 
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ØªØ§Ø±ÙŠØ®", Name = "Date", FillWeight = 18 });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ù†ØªØ¬", Name = "Product", FillWeight = 18 });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ù†ÙˆØ¹ Ø§Ù„Ø­Ø±ÙƒØ©", Name = "Type", FillWeight = 12 });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„ÙƒÙ…ÙŠØ©", Name = "Quantity", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ù‚Ø¨Ù„", Name = "Before", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø¨Ø¹Ø¯", Name = "After", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ø³Ø¨Ø¨", Name = "Reason", FillWeight = 18 });
-        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…", Name = "User", FillWeight = 10 });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "التاريخ", Name = "Date", FillWeight = 18 });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المنتج", Name = "Product", FillWeight = 18 });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "نوع الحركة", Name = "Type", FillWeight = 12 });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "الكمية", Name = "Quantity", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "قبل", Name = "Before", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "بعد", Name = "After", FillWeight = 8, DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter } });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "السبب", Name = "Reason", FillWeight = 18 });
+        _movementGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "المستخدم", Name = "User", FillWeight = 10 });
 
         _movementTabPage.Controls.Add(_movementGrid);
 
@@ -211,19 +211,19 @@ public class InventoryForm : UserControl
         _mainTabControl.TabPages.Add(_movementTabPage);
 
         // Overlay panels
-        _loadingPanel = CreateOverlay("Ø¬Ø§Ø±ÙŠ ØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù…Ø®Ø²ÙˆÙ†...");
-        _emptyPanel = CreateOverlay("Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª Ù…Ø®Ø²ÙˆÙ†");
+        _loadingPanel = CreateOverlay("جاري تحليل المخزون...");
+        _emptyPanel = CreateOverlay("لا توجد بيانات مخزون");
         _emptyPanel.Visible = false;
 
         _errorPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.BackgroundColor, Visible = false };
-        _errorLabel = new Label { Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø®Ø²ÙˆÙ†", Font = DesignTokens.SubheadingFont, ForeColor = DesignTokens.ErrorColor, Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
-        _retryButton = new Button { Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand };
+        _errorLabel = new Label { Text = "حدث خطأ أثناء تحميل المخزون", Font = DesignTokens.SubheadingFont, ForeColor = DesignTokens.ErrorColor, Dock = DockStyle.Top, Height = 40, TextAlign = ContentAlignment.MiddleCenter };
+        _retryButton = new Button { Text = "إعادة المحاولة", Font = DesignTokens.ButtonFont, BackColor = DesignTokens.PrimaryColor, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(150, 40), Cursor = Cursors.Hand };
         _retryButton.Anchor = AnchorStyles.None;
         _retryButton.Click += async (s, e) => await LoadStockAsync();
         _errorPanel.Controls.Add(_retryButton);
         _errorPanel.Controls.Add(_errorLabel);
 
-        _permissionPanel = CreateOverlay("Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø®Ø²ÙˆÙ†");
+        _permissionPanel = CreateOverlay("ليس لديك صلاحية لإدارة المخزون");
         _permissionPanel.Visible = false;
 
         Controls.Add(_loadingPanel);
@@ -298,31 +298,31 @@ public class InventoryForm : UserControl
 
         foreach (var item in filtered)
         {
-            var status = item.Quantity <= 0 ? "Ù†ÙØ°" : item.IsLowStock ? "Ù…Ù†Ø®ÙØ¶" : "Ù…ØªÙˆÙØ±";
-            _stockGrid.Rows.Add(item.ProductName, item.Quantity, item.ReservedQuantity, item.AvailableQuantity, item.MinStock, status, "â€”");
+            var status = item.Quantity <= 0 ? "نفذ" : item.IsLowStock ? "منخفض" : "متوفر";
+            _stockGrid.Rows.Add(item.ProductName, item.Quantity, item.ReservedQuantity, item.AvailableQuantity, item.MinStock, status, "—");
             _stockGrid.Rows[_stockGrid.Rows.Count - 1].Tag = item;
         }
 
         var total = items.Count;
         var low = items.Count(i => i.IsLowStock);
         var outOfStock = items.Count(i => i.Quantity <= 0);
-        _totalItemsLabel.Text = $"ðŸ“¦ Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø£ØµÙ†Ø§Ù: {total}";
-        _lowStockLabel.Text = $"âš ï¸ Ù…Ø®Ø²ÙˆÙ† Ù…Ù†Ø®ÙØ¶: {low}";
-        _outOfStockLabel.Text = $"âŒ Ù†ÙØ° Ù…Ù† Ø§Ù„Ù…Ø®Ø²ÙˆÙ†: {outOfStock}";
+        _totalItemsLabel.Text = $"📦 إجمالي الأصناف: {total}";
+        _lowStockLabel.Text = $"⚠️ مخزون منخفض: {low}";
+        _outOfStockLabel.Text = $"❌ نفذ من المخزون: {outOfStock}";
     }
 
     private List<InventoryStatusDto> GetSampleStock()
     {
         return new List<InventoryStatusDto>
         {
-            new InventoryStatusDto(Guid.NewGuid(), "Ù‚Ù‡ÙˆØ© Ø¹Ø±Ø¨ÙŠØ©", 50, 0, 50, "Ù‚Ø·Ø¹Ø©", 5, false),
-            new InventoryStatusDto(Guid.NewGuid(), "Ø´Ø§ÙŠ Ø£Ø­Ù…Ø±", 80, 0, 80, "Ù‚Ø·Ø¹Ø©", 10, false),
-            new InventoryStatusDto(Guid.NewGuid(), "ÙƒØ±ÙˆØ§Ø³ÙˆÙ†", 3, 2, 1, "Ù‚Ø·Ø¹Ø©", 5, true),
-            new InventoryStatusDto(Guid.NewGuid(), "ÙƒÙŠÙƒ Ø´ÙˆÙƒÙˆÙ„Ø§ØªØ©", 0, 0, 0, "Ù‚Ø·Ø¹Ø©", 5, true),
-            new InventoryStatusDto(Guid.NewGuid(), "Ø¹ØµÙŠØ± Ø¨Ø±ØªÙ‚Ø§Ù„", 15, 0, 15, "Ù‚Ø·Ø¹Ø©", 5, false),
-            new InventoryStatusDto(Guid.NewGuid(), "Ø³Ù†Ø¯ÙˆÙŠØ´ Ø¯Ø¬Ø§Ø¬", 2, 1, 1, "Ù‚Ø·Ø¹Ø©", 5, true),
-            new InventoryStatusDto(Guid.NewGuid(), "Ù…Ø§Ø¡ Ù…Ø¹Ø¯Ù†ÙŠ", 200, 0, 200, "Ø²Ø¬Ø§Ø¬Ø©", 20, false),
-            new InventoryStatusDto(Guid.NewGuid(), "Ø­Ù„ÙŠØ¨ Ø·Ø§Ø²Ø¬", 0, 0, 0, "Ù„ØªØ±", 10, true)
+            new InventoryStatusDto(Guid.NewGuid(), "قهوة عربية", 50, 0, 50, "قطعة", 5, false),
+            new InventoryStatusDto(Guid.NewGuid(), "شاي أحمر", 80, 0, 80, "قطعة", 10, false),
+            new InventoryStatusDto(Guid.NewGuid(), "كرواسون", 3, 2, 1, "قطعة", 5, true),
+            new InventoryStatusDto(Guid.NewGuid(), "كيك شوكولاتة", 0, 0, 0, "قطعة", 5, true),
+            new InventoryStatusDto(Guid.NewGuid(), "عصير برتقال", 15, 0, 15, "قطعة", 5, false),
+            new InventoryStatusDto(Guid.NewGuid(), "سندويش دجاج", 2, 1, 1, "قطعة", 5, true),
+            new InventoryStatusDto(Guid.NewGuid(), "ماء معدني", 200, 0, 200, "زجاجة", 20, false),
+            new InventoryStatusDto(Guid.NewGuid(), "حليب طازج", 0, 0, 0, "لتر", 10, true)
         };
     }
 
@@ -334,9 +334,9 @@ public class InventoryForm : UserControl
             var text = e.Value?.ToString() ?? "";
             e.CellStyle.ForeColor = text switch
             {
-                "Ù…ØªÙˆÙØ±" => DesignTokens.SuccessColor,
-                "Ù…Ù†Ø®ÙØ¶" => DesignTokens.WarningColor,
-                "Ù†ÙØ°" => DesignTokens.ErrorColor,
+                "متوفر" => DesignTokens.SuccessColor,
+                "منخفض" => DesignTokens.WarningColor,
+                "نفذ" => DesignTokens.ErrorColor,
                 _ => DesignTokens.TextPrimaryColor
             };
             e.CellStyle.Font = new Font(DesignTokens.DataFont, FontStyle.Bold);
@@ -363,7 +363,7 @@ public class InventoryForm : UserControl
         if (_stockGrid.SelectedRows.Count > 0 && _stockGrid.SelectedRows[0].Tag is InventoryStatusDto item)
             RequestAdjustment?.Invoke(this, item);
         else
-            RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ù…Ù†ØªØ¬ Ù…Ù† Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Information,
+            RtlMessageBox.Show("يرجى اختيار منتج من القائمة", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
     }
 
@@ -372,7 +372,7 @@ public class InventoryForm : UserControl
         if (_stockGrid.SelectedRows.Count > 0 && _stockGrid.SelectedRows[0].Tag is InventoryStatusDto item)
             RequestWaste?.Invoke(this, item);
         else
-            RtlMessageBox.Show("ÙŠØ±Ø¬Ù‰ Ø§Ø®ØªÙŠØ§Ø± Ù…Ù†ØªØ¬ Ù…Ù† Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©", "ØªÙ†Ø¨ÙŠÙ‡", MessageBoxButtons.OK, MessageBoxIcon.Information,
+            RtlMessageBox.Show("يرجى اختيار منتج من القائمة", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
     }
 
@@ -386,8 +386,8 @@ public class InventoryForm : UserControl
                 _movementGrid.Rows.Clear();
                 foreach (var m in result.Items)
                 {
-                    var typeText = m.MovementType switch { "Adjustment" => "ØªØ¹Ø¯ÙŠÙ„", "Sale" => "Ø¨ÙŠØ¹", "Purchase" => "Ø´Ø±Ø§Ø¡", "Waste" => "Ù‡Ø§Ù„Ùƒ", _ => m.MovementType };
-                    _movementGrid.Rows.Add(m.Timestamp, m.ProductName, typeText, m.Quantity, m.BeforeQuantity, m.AfterQuantity, m.Reason ?? "â€”", m.UserName);
+                    var typeText = m.MovementType switch { "Adjustment" => "تعديل", "Sale" => "بيع", "Purchase" => "شراء", "Waste" => "هالك", _ => m.MovementType };
+                    _movementGrid.Rows.Add(m.Timestamp, m.ProductName, typeText, m.Quantity, m.BeforeQuantity, m.AfterQuantity, m.Reason ?? "—", m.UserName);
                 }
             }
         }
