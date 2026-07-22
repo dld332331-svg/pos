@@ -385,13 +385,13 @@ public class SettingsForm : UserControl
         Controls.Add(_mainPanel);
 
         // Overlay panels
-        _loadingPanel = ThemeManager.CreateLoadingPanel("Ø¬Ø§Ø±ÙŠ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª...");
+        _loadingPanel = ThemeManager.CreateLoadingPanel("جاري تحميل الإعدادات...");
         _loadingPanel.Visible = false;
 
         _errorPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
         _errorLabel = new Label
         {
-            Text = "Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª",
+            Text = "حدث خطأ أثناء تحميل الإعدادات",
             Font = DesignTokens.Typography.SectionTitle,
             ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
@@ -400,7 +400,7 @@ public class SettingsForm : UserControl
         };
         var retryButton = new RtlButton
         {
-            Text = "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©",
+            Text = "إعادة المحاولة",
             Type = RtlButton.ButtonType.Primary,
             Width = 160,
             Height = DesignTokens.ControlHeight.Standard,
@@ -413,7 +413,7 @@ public class SettingsForm : UserControl
         _permissionPanel = new Panel { Dock = DockStyle.Fill, BackColor = DesignTokens.Colors.Background, Visible = false };
         _permissionPanel.Controls.Add(new Label
         {
-            Text = "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª",
+            Text = "ليس لديك صلاحية لإدارة الإعدادات",
             Font = DesignTokens.Typography.SectionTitle,
             ForeColor = DesignTokens.Colors.TextSecondary,
             TextAlign = ContentAlignment.MiddleCenter,
