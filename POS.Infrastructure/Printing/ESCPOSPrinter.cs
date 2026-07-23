@@ -734,15 +734,17 @@ public class ESCPOSPrinter : IPrinterService
             socket.NoDelay = true;
 
             // Run the connection attempt on a thread-pool thread to escape any
-            // single-threaded synchronization context (e.g., WinForms UI thread)
-            var result = Task.Run(() =>
+            // single-threaded synchronization context (e.g., WinForms UI thread).
+            // Use async/await inside Task.Run so the socket connect is truly asynchronous
+            // and cannot deadlock on a WinForms synchronization context.
+            var result = Task.Run(async () =>
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                 try
                 {
                     var endpoint = new System.Net.IPEndPoint(
                         System.Net.IPAddress.Parse(printer.IpAddress), port);
-                    socket.ConnectAsync(endpoint, cts.Token).GetAwaiter().GetResult();
+                    await socket.ConnectAsync(endpoint, cts.Token).ConfigureAwait(false);
                     return socket.Connected;
                 }
                 catch

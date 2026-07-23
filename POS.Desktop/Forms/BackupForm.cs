@@ -184,8 +184,9 @@ public class BackupForm : UserControl
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[BackupForm] LoadBackupsAsync failed: {ex}");
             SetState(BackupState.Error);
-            UpdateStatus(false, $"فشل تحميل سجل النسخ: {ex.Message}");
+            UpdateStatus(false, "فشل تحميل سجل النسخ");
         }
     }
 
@@ -247,8 +248,9 @@ public class BackupForm : UserControl
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[BackupForm] CreateBackupAsync failed: {ex}");
             SetState(BackupState.Loaded);
-            UpdateStatus(false, $"فشل إنشاء النسخة: {ex.Message}");
+            UpdateStatus(false, "فشل إنشاء النسخة");
         }
     }
 
@@ -272,8 +274,9 @@ public class BackupForm : UserControl
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError("Restore backup failed: {0}", ex);
             SetState(BackupState.Loaded);
-            UpdateStatus(false, $"فشلت الاستعادة: {ex.Message}");
+            UpdateStatus(false, "فشلت الاستعادة");
         }
     }
 
@@ -293,7 +296,8 @@ public class BackupForm : UserControl
         }
         catch (Exception ex)
         {
-            UpdateStatus(false, $"فشل حذف النسخة: {ex.Message}");
+            System.Diagnostics.Trace.TraceError("Delete backup failed: {0}", ex);
+            UpdateStatus(false, "فشل حذف النسخة");
         }
     }
 

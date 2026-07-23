@@ -12,4 +12,5 @@ public class HeldSale : BaseEntity
     // Navigation
     public User? User { get; set; }
     public Table? Table { get; set; }
+    public Shift? Shift { get; set; }
 }

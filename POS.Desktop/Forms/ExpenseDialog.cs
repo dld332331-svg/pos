@@ -277,7 +277,8 @@ public class ExpenseDialog : RtlDialog
         }
         catch (Exception ex)
         {
-            _lblValidation.Text = $"حدث خطأ أثناء حفظ المصروف: {ex.Message}";
+            System.Diagnostics.Trace.TraceError($"[ExpenseDialog] Save failed: {ex}");
+            _lblValidation.Text = "حدث خطأ أثناء حفظ المصروف";
             SetState(ExpenseState.Error);
         }
     }

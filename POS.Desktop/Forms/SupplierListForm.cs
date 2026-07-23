@@ -95,7 +95,7 @@ public class SupplierListForm : UserControl
             Width = 140,
             Height = DesignTokens.ControlHeight.Standard
         };
-        _btnAddSupplier.Click += (s, e) => ShowSupplierDialog(null);
+        _btnAddSupplier.Click += (s, e) => _ = ShowSupplierDialogAsync(null);
 
         _btnRefresh = new RtlButton
         {
@@ -310,7 +310,8 @@ public class SupplierListForm : UserControl
         }
         catch (Exception ex)
         {
-            _errorMessage.Text = $"حدث خطأ أثناء تحميل الموردين: {ex.Message}";
+            System.Diagnostics.Trace.TraceError("Load suppliers failed: {0}", ex);
+            _errorMessage.Text = "حدث خطأ أثناء تحميل الموردين";
             SetState(SupplierState.Error);
         }
     }
@@ -405,13 +406,13 @@ public class SupplierListForm : UserControl
         var menu = new ContextMenuStrip { RightToLeft = RightToLeft.Yes };
 
         var editItem = new ToolStripMenuItem("✏️ تعديل");
-        editItem.Click += (s, e) => ShowSupplierDialog(supplier);
+        editItem.Click += (s, e) => _ = ShowSupplierDialogAsync(supplier);
         menu.Items.Add(editItem);
 
         menu.Items.Add(new ToolStripSeparator());
 
         var deleteItem = new ToolStripMenuItem("🗑 حذف");
-        deleteItem.Click += (s, e) => DeleteSupplier(supplier);
+        deleteItem.Click += (s, e) => _ = DeleteSupplierAsync(supplier);
         menu.Items.Add(deleteItem);
 
         menu.Show(this, PointToClient(MousePosition));
@@ -419,69 +420,79 @@ public class SupplierListForm : UserControl
 
     // --- Supplier Dialog ---
 
-    private async void ShowSupplierDialog(SupplierForm.SupplierData? existing)
+    private async Task ShowSupplierDialogAsync(SupplierForm.SupplierData? existing)
     {
-        var result = SupplierForm.ShowDialog(existing, _suppliers, this.FindForm());
-        if (result == DialogResult.OK)
+        try
         {
-            if (existing != null)
+            var result = SupplierForm.ShowDialog(existing, _suppliers, this.FindForm());
+            if (result == DialogResult.OK)
             {
-                // Update via service
-                try
-                {
-                    await _supplierService.UpdateSupplierAsync(
-                        existing.SupplierId,
-                        existing.Name,
-                        existing.Contact,
-                        existing.Phone,
-                        existing.Email,
-                        existing.Address);
-                }
-                catch { /* handled by next LoadDataAsync call */ }
-            }
-            else
-            {
-                // New supplier - find the last added item (highest local Id)
-                var newEntry = _suppliers.OrderByDescending(s => s.Id).FirstOrDefault();
-                if (newEntry != null)
+                if (existing != null)
                 {
                     try
                     {
-                        var created = await _supplierService.CreateSupplierAsync(
-                            newEntry.Name,
-                            newEntry.Contact,
-                            newEntry.Phone,
-                            newEntry.Email,
-                            newEntry.Address);
-                        newEntry.SupplierId = created.Id;
+                        await _supplierService.UpdateSupplierAsync(
+                            existing.SupplierId,
+                            existing.Name,
+                            existing.Contact,
+                            existing.Phone,
+                            existing.Email,
+                            existing.Address);
                     }
-                    catch { /* handled by next LoadDataAsync call */ }
+                    catch { System.Diagnostics.Trace.TraceWarning("[SupplierList] Supplier update failed"); }
                 }
-            }
+                else
+                {
+                    var newEntry = _suppliers.OrderByDescending(s => s.Id).FirstOrDefault();
+                    if (newEntry != null)
+                    {
+                        try
+                        {
+                            var created = await _supplierService.CreateSupplierAsync(
+                                newEntry.Name,
+                                newEntry.Contact,
+                                newEntry.Phone,
+                                newEntry.Email,
+                                newEntry.Address);
+                            newEntry.SupplierId = created.Id;
+                        }
+                        catch { System.Diagnostics.Trace.TraceWarning("[SupplierList] Supplier operation failed, will reload"); }
+                    }
+                }
 
-            await LoadDataAsync();
-            if (existing != null)
-                SupplierUpdated?.Invoke(this, EventArgs.Empty);
-            else
-                SupplierAdded?.Invoke(this, EventArgs.Empty);
+                await LoadDataAsync();
+                if (existing != null)
+                    SupplierUpdated?.Invoke(this, EventArgs.Empty);
+                else
+                    SupplierAdded?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[SupplierListForm] ShowSupplierDialogAsync failed: {ex}");
         }
     }
 
     // --- Delete ---
 
-    private async void DeleteSupplier(SupplierForm.SupplierData supplier)
+    private async Task DeleteSupplierAsync(SupplierForm.SupplierData supplier)
     {
-        var result = RtlDialog.ShowDestructiveConfirm(
-            "حذف مورد",
-            $"هل أنت متأكد من حذف المورد \"{supplier.Name}\"؟\n\nسيتم حذف جميع سجلاته نهائياً."
-        );
-        if (result == DialogResult.OK)
+        try
         {
-            _suppliers.Remove(supplier);
-            ApplyFilter();
-            SupplierDeleted?.Invoke(this, EventArgs.Empty);
-
-            // ISupplierService doesn't have a delete method yet
+            var result = RtlDialog.ShowDestructiveConfirm(
+                "حذف مورد",
+                $"هل أنت متأكد من حذف المورد \"{supplier.Name}\"؟\n\nسيتم حذف جميع سجلاته نهائياً."
+            );
+            if (result == DialogResult.OK)
+            {
+                _suppliers.Remove(supplier);
+                ApplyFilter();
+                SupplierDeleted?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[SupplierListForm] DeleteSupplierAsync failed: {ex}");
         }
     }
 

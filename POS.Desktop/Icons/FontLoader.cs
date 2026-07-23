@@ -80,11 +80,11 @@ public static class FontLoader
             if (IsFontInstalled(CairoFamily))
                 return new Font(CairoFamily, size, style, GraphicsUnit.Point);
         }
-        catch { /* fall through */ }
+        catch { System.Diagnostics.Trace.TraceWarning("[FontLoader] Cairo font not available, falling back to Segoe UI"); }
 
         // Fallback to Segoe UI (excellent Arabic on Windows 10+)
         try { return new Font("Segoe UI", size, style, GraphicsUnit.Point); }
-        catch { /* fall through */ }
+        catch { System.Diagnostics.Trace.TraceWarning("[FontLoader] Segoe UI font not available, falling back to Microsoft Sans Serif"); }
 
         // Final fallback
         return new Font("Microsoft Sans Serif", size, style, GraphicsUnit.Point);

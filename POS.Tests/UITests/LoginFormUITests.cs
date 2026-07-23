@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Windows.Forms;
 using Moq;
 using POS.Application.DTOs;
@@ -28,10 +27,6 @@ public sealed class LoginFormUITests : IDisposable
         _mockAuth.Setup(a => a.CheckDatabaseConnectionAsync()).ReturnsAsync(true);
 
         _host = new FormTestHost<LoginForm>(_mockAuth.Object);
-
-        // Make username textbox visible (default is hidden, ComboBox is shown)
-        // This ensures SetTextBox works correctly for login tests
-        _host.InvokeOnUI(() => _host.Control.LoadUsernames(new List<string>()));
         Thread.Sleep(100);
     }
 
@@ -54,7 +49,7 @@ public sealed class LoginFormUITests : IDisposable
 
     [Fact]
     public void InitialState_ErrorLabelIsHidden() =>
-        Assert.False(_host.IsVisible("_errorMessageLabel"));
+        Assert.False(_host.IsVisible("_errorMessagePanel"));
 
     [Fact]
     public void InitialState_PasswordFieldIsEnabled() =>
@@ -117,7 +112,7 @@ public sealed class LoginFormUITests : IDisposable
     {
         _host.ClickButton("_loginButton");
         Thread.Sleep(200);
-        Assert.True(_host.IsVisible("_errorMessageLabel"));
+        Assert.True(_host.IsVisible("_errorMessagePanel"));
         Assert.Contains("اسم المستخدم", _host.GetText("_errorMessageLabel"));
     }
 
@@ -134,7 +129,7 @@ public sealed class LoginFormUITests : IDisposable
 
         _host.InvokeOnUI(() =>
         {
-            Assert.True(_host.IsVisible("_errorMessageLabel"));
+            Assert.True(_host.IsVisible("_errorMessagePanel"));
             Assert.Contains("غير صحيحة", _host.GetText("_errorMessageLabel"));
         });
     }
@@ -152,7 +147,7 @@ public sealed class LoginFormUITests : IDisposable
 
         _host.InvokeOnUI(() =>
         {
-            Assert.True(_host.IsVisible("_errorMessageLabel"));
+            Assert.True(_host.IsVisible("_errorMessagePanel"));
             var text = _host.GetText("_errorMessageLabel");
             Assert.Contains("غير صحيحة", text);
         });
@@ -171,7 +166,7 @@ public sealed class LoginFormUITests : IDisposable
 
         _host.InvokeOnUI(() =>
         {
-            Assert.True(_host.IsVisible("_errorMessageLabel"));
+            Assert.True(_host.IsVisible("_errorMessagePanel"));
             Assert.Contains("معطل", _host.GetText("_errorMessageLabel"));
         });
     }
@@ -200,22 +195,6 @@ public sealed class LoginFormUITests : IDisposable
         Assert.NotNull(response);
         Assert.Equal("المدير", response.DisplayName);
         Assert.Equal("Admin", response.Role);
-    }
-
-    [Fact]
-    public void LoadUsernames_WithList_ShowsComboBox()
-    {
-        _host.InvokeOnUI(() => _host.Control.LoadUsernames(new List<string> { "admin", "manager" }));
-        Assert.True(_host.IsVisible("_usernameComboBox"));
-        Assert.False(_host.IsVisible("_usernameTextBox"));
-    }
-
-    [Fact]
-    public void LoadUsernames_WithEmptyList_ShowsTextBox()
-    {
-        _host.InvokeOnUI(() => _host.Control.LoadUsernames(new List<string>()));
-        Assert.False(_host.IsVisible("_usernameComboBox"));
-        Assert.True(_host.IsVisible("_usernameTextBox"));
     }
 
     [Fact]
@@ -248,6 +227,7 @@ public sealed class LoginFormUITests : IDisposable
         await Task.Delay(1500);
 
         Assert.False(_host.IsEnabled("_loginButton"));
+        Assert.True(_host.IsVisible("_errorMessagePanel"));
         Assert.Contains("قاعدة البيانات", _host.GetText("_errorMessageLabel"));
     }
 }

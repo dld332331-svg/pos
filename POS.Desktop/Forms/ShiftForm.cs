@@ -340,7 +340,8 @@ public class ShiftForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show(ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[ShiftForm] ShowShiftStartDetails failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء بدء الوردية", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 confirmBtn.Enabled = true;
             }
         };
@@ -388,7 +389,8 @@ public class ShiftForm : UserControl
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"خطأ في إغلاق الوردية: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            System.Diagnostics.Trace.TraceError($"[ShiftForm] CloseShiftAsync failed: {ex}");
+            RtlMessageBox.Show("حدث خطأ أثناء إغلاق الوردية", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

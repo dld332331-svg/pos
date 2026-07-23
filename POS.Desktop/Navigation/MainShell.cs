@@ -1,18 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using Microsoft.Extensions.DependencyInjection;
+using POS.Desktop.CustomControls;
 using POS.Desktop.Forms;
 using POS.Desktop.Themes;
 using POS.Desktop.Icons;
 using POS.Application.DTOs;
 using POS.Application.Services;
-// IAuthService is imported via POS.Application.Services (already in scope)
-// INotificationService is fully qualified to avoid ambiguity
 using NotifSvc = POS.Domain.Interfaces.INotificationService;
 using NotifMsg = POS.Domain.Interfaces.NotificationMessage;
 using NotifType = POS.Domain.Interfaces.NotificationType;
@@ -21,59 +21,74 @@ using NotifCat = POS.Domain.Interfaces.NotificationCategory;
 namespace POS.Desktop.Navigation;
 
 /// <summary>
-/// Main application shell using DevExpress XtraForm with panel-based navigation sidebar.
-/// RTL layout, DevExpress skin support, and centralized navigation events.
-/// Includes notification system with bell icon, unread badge, toast popups, and notification center.
-/// Icons use Font Awesome (separate Label controls) and text uses Cairo/Segoe UI Arabic font.
+/// MainShell — POS_EN.md §12 Application Shell.
+/// Modern RTL shell with glass-morphic sidebar, top bar, notification bell, live clock,
+/// permission-aware navigation, and professional visual hierarchy.
 /// </summary>
 public class MainShell : XtraForm
 {
-    private PanelControl _sidebar = null!;
+    // ── Layout Constants ──
+    private const int SidebarWidth = 260;
+    private const int TopBarHeight = 60;
+    private const int NavItemHeight = 48;
+    private const int SidebarIconSize = 20;
+
+    // ── Fonts ──
+    private static readonly Font _arabicFont = FontLoader.GetArabicFont(10.5f);
+    private static readonly Font _arabicBold = FontLoader.GetArabicFont(10.5f, FontStyle.Bold);
+    private static readonly Font _arabicHeader = FontLoader.GetArabicFont(13f, FontStyle.Bold);
+    private static readonly Font _iconFont = FontLoader.GetFontAwesomeSolid(14f);
+    private static readonly Font _smallIconFont = FontLoader.GetFontAwesomeSolid(11f);
+    private static readonly Font _bellIconFont = FontLoader.GetFontAwesomeSolid(18f);
+    private static readonly Font _badgeFont = new Font("Segoe UI", 7f, FontStyle.Bold);
+
+    // ── Colors ──
+    private static readonly Color SidebarBg = DesignTokens.Colors.SidebarBackground;
+    private static readonly Color SidebarHover = DesignTokens.Colors.SidebarHover;
+    private static readonly Color SidebarActive = DesignTokens.Colors.SidebarActive;
+    private static readonly Color SidebarText = DesignTokens.Colors.SidebarText;
+    private static readonly Color SidebarTextActive = DesignTokens.Colors.SidebarTextActive;
+    private static readonly Color TopBarBg = DesignTokens.Colors.Surface;
+    private static readonly Color TopBarBorder = DesignTokens.Colors.Border;
+
+    // ── Controls ──
+    private Panel _sidebar = null!;
     private FlowLayoutPanel _navPanel = null!;
     private PanelControl _contentArea = null!;
-    private PanelControl _topBar = null!;
-    private LabelControl _lblCurrentUser = null!;
-    private LabelControl _lblShift = null!;
-    private LabelControl _lblDateTime = null!;
-    private SimpleButton _btnLock = null!;
-    private SimpleButton _btnLogout = null!;
-    private System.Windows.Forms.Timer _clockTimer = null!;
+    private Panel _topBar = null!;
+    private Label _lblCurrentUser = null!;
+    private Label _lblShift = null!;
+    private Label _lblDateTime = null!;
+    private RtlButton _btnLock = null!;
+    private RtlButton _btnLogout = null!;
+    private Timer _clockTimer = null!;
     private DefaultLookAndFeel _defaultLookAndFeel = null!;
 
-    // Notification components
+    // ── Notification Components ──
     private readonly NotifSvc _notificationService;
     private Label _btnNotificationBell = null!;
     private Label _lblNotificationBadge = null!;
     private Form _notificationPopup = null!;
     private FlowLayoutPanel _notificationListPanel = null!;
+    private Timer _notificationTimer = null!;
 
-    private static readonly Font _arabicFont = FontLoader.GetArabicFont(10f);
-    private static readonly Font _iconFont = FontLoader.GetFontAwesomeSolid(14f);
-    private static readonly Font _smallIconFont = FontLoader.GetFontAwesomeSolid(12f);
-    private static readonly Font _headerFont = FontLoader.GetArabicFont(12f, FontStyle.Bold);
-    private static readonly Color _hoverBack = Color.FromArgb(240, 240, 245);
+    // ── App Logo ──
+    private Panel _appLogoPanel = null!;
+    private Label _appLogoText = null!;
+    private Label _appLogoSubtext = null!;
 
-    // ========================================================================
-    // Nav Item Metadata (permission-aware)
-    // ========================================================================
+    // ── Nav Item Definitions ──
     private record NavItemDef(string Label, string Icon, EventHandler Handler, string? RequiredPermission);
-
     private readonly NavItemDef[] _navItemDefs;
+    private readonly Dictionary<string, Panel> _navPanelsByPermission = new();
 
-    // ========================================================================
-    // Permission State
-    // ========================================================================
+    // ── State ──
     private Guid _currentUserId;
     private string _currentRole = string.Empty;
-    private readonly Dictionary<string, Panel> _navPanelsByPermission = new();
-    private Timer? _notificationTimer;
+    private Panel? _activeNavItem;
 
-    // ========================================================================
-    // Nav Item Event Handlers (static, referenced via reflection-like pattern)
-    // ========================================================================
-
+    // ── Events ──
     public PanelControl ContentArea => _contentArea;
-
     public event EventHandler? OnNavigateToPOS;
     public event EventHandler? OnNavigateToProducts;
     public event EventHandler? OnNavigateToInventory;
@@ -86,24 +101,14 @@ public class MainShell : XtraForm
     public event EventHandler? OnNavigateToBackup;
     public event EventHandler? OnNavigateToDashboard;
     public event EventHandler? OnNavigateToPromotions;
+    public event EventHandler? OnNavigateToReturns;
     public event EventHandler? OnLogout;
     public event EventHandler? OnLock;
-
-    public MainShell() : this(GetDefaultNotificationService())
-    {
-    }
-
-    private static NotifSvc GetDefaultNotificationService()
-    {
-        return (AppServiceProvider.Provider?.GetService(typeof(NotifSvc)) as NotifSvc)
-               ?? new Services.NotificationService();
-    }
 
     public MainShell(NotifSvc notificationService)
     {
         _notificationService = notificationService;
 
-        // Initialize nav item definitions (must be before InitializeNavSidebar)
         _navItemDefs = new[]
         {
             new NavItemDef("لوحة التحكم", FontAwesomeIcons.Dashboard, (s, e) => OnNavigateToDashboard?.Invoke(this, e), "ViewDashboard"),
@@ -112,9 +117,10 @@ public class MainShell : XtraForm
             new NavItemDef("المخزون", FontAwesomeIcons.Inventory, (s, e) => OnNavigateToInventory?.Invoke(this, e), "AdjustInventory"),
             new NavItemDef("الطاولات", FontAwesomeIcons.Table, (s, e) => OnNavigateToTables?.Invoke(this, e), "ManageTables"),
             new NavItemDef("التقارير", FontAwesomeIcons.Report, (s, e) => OnNavigateToReports?.Invoke(this, e), "ViewReports"),
+            new NavItemDef("العروض", FontAwesomeIcons.Discount, (s, e) => OnNavigateToPromotions?.Invoke(this, e), "ManagePromotions"),
             new NavItemDef("المستخدمين", FontAwesomeIcons.Users, (s, e) => OnNavigateToUsers?.Invoke(this, e), "ManageUsers"),
             new NavItemDef("الطابعات", FontAwesomeIcons.Printer, (s, e) => OnNavigateToPrinters?.Invoke(this, e), "ManagePrinters"),
-            new NavItemDef("العروض الترويجية", FontAwesomeIcons.Discount, (s, e) => OnNavigateToPromotions?.Invoke(this, e), "ManagePromotions"),
+            new NavItemDef("المرتجعات", FontAwesomeIcons.Return, (s, e) => OnNavigateToReturns?.Invoke(this, e), "ReturnItem"),
             new NavItemDef("سجل المراجعة", FontAwesomeIcons.History, (s, e) => OnNavigateToAudit?.Invoke(this, e), "ViewAuditLog"),
             new NavItemDef("النسخ الاحتياطي", FontAwesomeIcons.Backup, (s, e) => OnNavigateToBackup?.Invoke(this, e), "Backup"),
             new NavItemDef("الإعدادات", FontAwesomeIcons.Settings, (s, e) => OnNavigateToSettings?.Invoke(this, e), "ChangeSettings"),
@@ -122,10 +128,10 @@ public class MainShell : XtraForm
 
         InitializeForm();
         InitializeTopBar();
-        InitializeNavSidebar();
+        InitializeSidebar();
         InitializeContentArea();
-        InitializeClock();
         InitializeNotifications();
+        InitializeClock();
         ApplyTheme();
     }
 
@@ -136,118 +142,141 @@ public class MainShell : XtraForm
         RightToLeftLayout = true;
         Font = _arabicFont;
         Text = "نظام نقاط البيع";
-        FormBorderEffect = DevExpress.XtraEditors.FormBorderEffect.Shadow;
+        KeyPreview = true;
+        BackColor = DesignTokens.Colors.Background;
+        KeyDown += MainShell_KeyDown;
+    }
+
+    private void MainShell_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_contentArea.Controls.Count == 0) return;
+        if (_contentArea.Controls[0] is PosTerminalForm posTerminal)
+        {
+            posTerminal.HandleKeyDown(e);
+        }
     }
 
     private void InitializeTopBar()
     {
-        _topBar = new PanelControl
+        _topBar = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 52,
-            RightToLeft = RightToLeft.Yes
+            Height = TopBarHeight,
+            BackColor = TopBarBg
         };
 
-        _lblCurrentUser = new LabelControl
+        // Bottom border line
+        var borderLine = new Panel
         {
-            Text = "المستخدم: المدير",
-            Font = _arabicFont,
-            ForeColor = Colors.TextSecondary,
-            Width = 200,
-            Appearance = { TextOptions = { HAlignment = DevExpress.Utils.HorzAlignment.Far } },
-            Dock = DockStyle.Right
+            Dock = DockStyle.Bottom,
+            Height = 1,
+            BackColor = TopBarBorder
         };
 
-        _lblShift = new LabelControl
-        {
-            Text = "الوردية: #1",
-            Font = _arabicFont,
-            ForeColor = Colors.TextSecondary,
-            Width = 150,
-            Appearance = { TextOptions = { HAlignment = DevExpress.Utils.HorzAlignment.Far } },
-            Dock = DockStyle.Right
-        };
-
-        _lblDateTime = new LabelControl
+        // ── Left Side: Date/Time ──
+        _lblDateTime = new Label
         {
             Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm"),
             Font = _arabicFont,
-            ForeColor = Colors.TextSecondary,
-            Width = 200,
-            Dock = DockStyle.Left
+            ForeColor = DesignTokens.Colors.TextSecondary,
+            Dock = DockStyle.Left,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Width = 180,
+            Padding = new Padding(DesignTokens.Spacing.Standard, 0, 0, 0)
         };
 
-        // Notification bell button with badge
+        // ── Right Side: User info ──
+        _lblCurrentUser = new Label
+        {
+            Text = "المستخدم: المدير",
+            Font = _arabicBold,
+            ForeColor = DesignTokens.Colors.TextPrimary,
+            Dock = DockStyle.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Width = 190,
+            Padding = new Padding(0, 0, DesignTokens.Spacing.Standard, 0)
+        };
+
+        _lblShift = new Label
+        {
+            Text = "الوردية: #1",
+            Font = _arabicFont,
+            ForeColor = DesignTokens.Colors.TextSecondary,
+            Dock = DockStyle.Right,
+            TextAlign = ContentAlignment.MiddleRight,
+            Width = 130,
+            Padding = new Padding(0, 0, DesignTokens.Spacing.Small, 0)
+        };
+
+        // ── Action Buttons ──
+        _btnLogout = new RtlButton
+        {
+            Text = "خروج",
+            IconText = FontAwesomeIcons.Logout,
+            Type = RtlButton.ButtonType.Ghost,
+            Size = new Size(90, TopBarHeight - 12),
+            Dock = DockStyle.Left,
+            CornerRadius = DesignTokens.Radius.Md
+        };
+        _btnLogout.Click += async (s, e) => await CheckLogoutPermissionAsync();
+
+        _btnLock = new RtlButton
+        {
+            Text = "قفل",
+            IconText = FontAwesomeIcons.Lock,
+            Type = RtlButton.ButtonType.Ghost,
+            Size = new Size(80, TopBarHeight - 12),
+            Dock = DockStyle.Left,
+            CornerRadius = DesignTokens.Radius.Md
+        };
+        _btnLock.Click += async (s, e) => await CheckLockPermissionAsync();
+
+        // ── Notification Bell ──
+        var bellContainer = new Panel
+        {
+            Width = 48,
+            Height = TopBarHeight,
+            Dock = DockStyle.Left,
+            BackColor = Color.Transparent,
+            Cursor = Cursors.Hand
+        };
+
         _btnNotificationBell = new Label
         {
-            Text = FontAwesomeIcons.Notification, // fa-bell
-            Font = _iconFont,
-            ForeColor = Colors.TextPrimary,
-            Size = new Size(40, 36),
-            Dock = DockStyle.Left,
+            Text = FontAwesomeIcons.Notification,
+            Font = _bellIconFont,
+            ForeColor = DesignTokens.Colors.TextSecondary,
+            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleCenter,
-            Cursor = Cursors.Hand,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
+            BackColor = Color.Transparent
         };
         _btnNotificationBell.Click += ToggleNotificationPopup;
-        _btnNotificationBell.MouseEnter += (s, e) => _btnNotificationBell.BackColor = _hoverBack;
-        _btnNotificationBell.MouseLeave += (s, e) => _btnNotificationBell.BackColor = Color.Transparent;
+        _btnNotificationBell.MouseEnter += (s, e) => bellContainer.BackColor = DesignTokens.Colors.Background;
+        _btnNotificationBell.MouseLeave += (s, e) => bellContainer.BackColor = Color.Transparent;
 
-        // Unread badge overlay on the bell
         _lblNotificationBadge = new Label
         {
             Text = "0",
-            Font = new Font("Segoe UI", 7f, FontStyle.Bold),
+            Font = _badgeFont,
             ForeColor = Color.White,
-            BackColor = DesignTokens.ErrorColor,
-            Size = new Size(16, 16),
-            Location = new Point(24, 2),
+            BackColor = DesignTokens.Colors.Accent,
+            Size = new Size(18, 18),
+            Location = new Point(26, 8),
             TextAlign = ContentAlignment.MiddleCenter,
             Visible = false,
             Cursor = Cursors.Hand
         };
-        // Make badge circular (set region once)
-        using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+        using (var path = new GraphicsPath())
         {
             path.AddEllipse(0, 0, _lblNotificationBadge.Width - 1, _lblNotificationBadge.Height - 1);
             _lblNotificationBadge.Region = new Region(path);
         }
         _lblNotificationBadge.Click += ToggleNotificationPopup;
 
-        _btnLogout = new SimpleButton
-        {
-            Text = "خروج",
-            Width = 80,
-            Height = 36,
-            Dock = DockStyle.Left,
-            Font = _arabicFont,
-            Appearance = { BackColor = Colors.Surface, ForeColor = Colors.TextPrimary }
-        };
-        _btnLogout.Click += async (s, e) => await CheckLogoutPermissionAsync();
-
-        _btnLock = new SimpleButton
-        {
-            Text = "قفل",
-            Width = 70,
-            Height = 36,
-            Dock = DockStyle.Left,
-            Font = _arabicFont,
-            Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0)
-        };
-        _btnLock.Click += async (s, e) => await CheckLockPermissionAsync();
-
-        // Wrap bell + badge in a container for proper layout
-        var bellContainer = new Panel
-        {
-            Width = 40,
-            Height = 36,
-            Dock = DockStyle.Left,
-            BackColor = Color.Transparent
-        };
         bellContainer.Controls.Add(_lblNotificationBadge);
         bellContainer.Controls.Add(_btnNotificationBell);
 
+        _topBar.Controls.Add(borderLine);
         _topBar.Controls.Add(_lblCurrentUser);
         _topBar.Controls.Add(_lblShift);
         _topBar.Controls.Add(bellContainer);
@@ -259,20 +288,268 @@ public class MainShell : XtraForm
     }
 
     // ========================================================================
-    // Notification System
+    // Sidebar Navigation
+    // ========================================================================
+
+    private void InitializeSidebar()
+    {
+        _sidebar = new Panel
+        {
+            Dock = DockStyle.Right,
+            Width = SidebarWidth,
+            BackColor = SidebarBg
+        };
+
+        // ── App Logo Area ──
+        _appLogoPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 110,
+            BackColor = DesignTokens.Colors.SidebarBackgroundDarker
+        };
+        _appLogoPanel.Paint += (s, e) =>
+        {
+            using var path = DesignTokens.CreateRoundedRect(_appLogoPanel.ClientRectangle, 0);
+        };
+
+        _appLogoText = new Label
+        {
+            Text = "POS",
+            Font = new Font("Segoe UI", 24f, FontStyle.Bold),
+            ForeColor = Color.White,
+            Location = new Point(20, 22),
+            Size = new Size(210, 38),
+            TextAlign = ContentAlignment.MiddleRight
+        };
+
+        _appLogoSubtext = new Label
+        {
+            Text = "نظام نقاط البيع",
+            Font = _arabicFont,
+            ForeColor = SidebarText,
+            Location = new Point(20, 62),
+            Size = new Size(210, 24),
+            TextAlign = ContentAlignment.MiddleRight
+        };
+
+        // Version badge
+        var versionBadge = new Label
+        {
+            Text = "v1.0",
+            Font = new Font("Segoe UI", 7f, FontStyle.Bold),
+            ForeColor = Color.White,
+            BackColor = DesignTokens.Colors.Primary,
+            Size = new Size(42, 20),
+            Location = new Point(188, 30),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        versionBadge.Paint += (s, e) =>
+        {
+            using var path = DesignTokens.CreateRoundedRect(versionBadge.ClientRectangle, 6);
+            versionBadge.Region = new Region(path);
+        };
+
+        _appLogoPanel.Controls.Add(versionBadge);
+        _appLogoPanel.Controls.Add(_appLogoSubtext);
+        _appLogoPanel.Controls.Add(_appLogoText);
+
+        // ── Navigation Items ──
+        _navPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            AutoScroll = true,
+            BackColor = Color.Transparent,
+            Padding = new Padding(DesignTokens.Spacing.Small, DesignTokens.Spacing.Compact, DesignTokens.Spacing.Small, DesignTokens.Spacing.Compact)
+        };
+
+        // Separator
+        var sep = new Panel
+        {
+            Width = SidebarWidth - 32,
+            Height = 1,
+            BackColor = DesignTokens.Colors.SidebarDivider,
+            Margin = new Padding(12, 4, 12, 8)
+        };
+        _navPanel.Controls.Add(sep);
+
+        foreach (var def in _navItemDefs)
+        {
+            var item = CreateNavItem(def.Label, def.Icon, def.Handler);
+            _navPanel.Controls.Add(item);
+            if (def.RequiredPermission != null)
+                _navPanelsByPermission[def.RequiredPermission] = item;
+        }
+
+        // ── Bottom Section: Sidebar footer ──
+        var sidebarFooter = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 44,
+            BackColor = DesignTokens.Colors.SidebarBackgroundDarker
+        };
+
+        var footerLabel = new Label
+        {
+            Text = $"{FontAwesomeIcons.Copyright} 2026",
+            Font = _smallIconFont,
+            ForeColor = Color.FromArgb(71, 85, 105),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+        sidebarFooter.Controls.Add(footerLabel);
+
+        _sidebar.Controls.Add(_navPanel);
+        _sidebar.Controls.Add(sidebarFooter);
+        _sidebar.Controls.Add(_appLogoPanel);
+
+        Controls.Add(_sidebar);
+    }
+
+    private Panel CreateNavItem(string arabicText, string iconChar, EventHandler? clickHandler)
+    {
+        var panel = new Panel
+        {
+            Width = SidebarWidth - 24,
+            Height = NavItemHeight,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0, 0, 0, 4),
+            Cursor = Cursors.Hand
+        };
+        panel.Paint += (s, e) =>
+        {
+            if (panel.BackColor != Color.Transparent)
+            {
+                using var path = DesignTokens.CreateRoundedRect(panel.ClientRectangle, DesignTokens.Radius.Md);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var brush = new SolidBrush(panel.BackColor);
+                e.Graphics.FillPath(brush, path);
+            }
+        };
+
+        // Icon (right side in RTL layout)
+        var iconLabel = new Label
+        {
+            Text = iconChar,
+            Font = _iconFont,
+            ForeColor = SidebarText,
+            Location = new Point(8, (NavItemHeight - SidebarIconSize) / 2),
+            Size = new Size(SidebarIconSize, SidebarIconSize),
+            TextAlign = ContentAlignment.MiddleCenter,
+            BackColor = Color.Transparent
+        };
+
+        // Text (to the left of icon in RTL layout)
+        var textLabel = new Label
+        {
+            Text = arabicText,
+            Font = _arabicFont,
+            ForeColor = SidebarText,
+            Location = new Point(8 + SidebarIconSize + 8, 0),
+            Size = new Size(SidebarWidth - 24 - SidebarIconSize - 32, NavItemHeight),
+            TextAlign = ContentAlignment.MiddleRight,
+            BackColor = Color.Transparent,
+            RightToLeft = RightToLeft.Yes
+        };
+
+        // Hover + Click
+        panel.MouseEnter += (s, e) => { if (panel != _activeNavItem) panel.BackColor = SidebarHover; };
+        panel.MouseLeave += (s, e) => { if (panel != _activeNavItem) panel.BackColor = Color.Transparent; };
+        iconLabel.MouseEnter += (s, e) => { if (panel != _activeNavItem) panel.BackColor = SidebarHover; };
+        iconLabel.MouseLeave += (s, e) => { if (panel != _activeNavItem) panel.BackColor = Color.Transparent; };
+        textLabel.MouseEnter += (s, e) => { if (panel != _activeNavItem) panel.BackColor = SidebarHover; };
+        textLabel.MouseLeave += (s, e) => { if (panel != _activeNavItem) panel.BackColor = Color.Transparent; };
+
+        void ClickAction(object? s, EventArgs e)
+        {
+            SetActiveNavItem(panel);
+            clickHandler?.Invoke(this, e);
+        }
+
+        panel.Click += ClickAction;
+        iconLabel.Click += ClickAction;
+        textLabel.Click += ClickAction;
+
+        panel.Controls.Add(textLabel);
+        panel.Controls.Add(iconLabel);
+
+        return panel;
+    }
+
+    private void SetActiveNavItem(Panel? item)
+    {
+        // Reset previous active
+        if (_activeNavItem != null)
+        {
+            _activeNavItem.BackColor = Color.Transparent;
+            foreach (Label lbl in _activeNavItem.Controls.OfType<Label>())
+            {
+                lbl.ForeColor = SidebarText;
+            }
+        }
+
+        _activeNavItem = item;
+
+        if (_activeNavItem != null)
+        {
+            _activeNavItem.BackColor = SidebarActive;
+            foreach (Label lbl in _activeNavItem.Controls.OfType<Label>())
+            {
+                lbl.ForeColor = SidebarTextActive;
+            }
+        }
+    }
+
+    private void InitializeContentArea()
+    {
+        _contentArea = new PanelControl
+        {
+            Dock = DockStyle.Fill,
+            RightToLeft = RightToLeft.Yes,
+            Padding = new Padding(0),
+            BackColor = DesignTokens.Colors.Background
+        };
+        Controls.Add(_contentArea);
+    }
+
+    private void InitializeClock()
+    {
+        _clockTimer = new Timer { Interval = 1000 };
+        _clockTimer.Tick += (s, e) =>
+        {
+            _lblDateTime.Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm");
+        };
+        _clockTimer.Start();
+    }
+
+    private void ApplyTheme()
+    {
+        try
+        {
+            DevExpress.Skins.SkinManager.EnableFormSkins();
+            try { DevExpress.UserSkins.BonusSkins.Register(); } catch { System.Diagnostics.Trace.TraceWarning("[Skins] BonusSkins not available, using default skin"); }
+            _defaultLookAndFeel = new DefaultLookAndFeel();
+            _defaultLookAndFeel.LookAndFeel.Style = LookAndFeelStyle.UltraFlat;
+            _defaultLookAndFeel.LookAndFeel.UseDefaultLookAndFeel = false;
+        }
+        catch
+        {
+            _defaultLookAndFeel = new DefaultLookAndFeel();
+            _defaultLookAndFeel.LookAndFeel.Style = LookAndFeelStyle.UltraFlat;
+        }
+    }
+
+    // ========================================================================
+    // Notifications
     // ========================================================================
 
     private void InitializeNotifications()
     {
-        // Subscribe to notification service events
         _notificationService.NotificationRaised += OnNotificationRaised;
-
-        // Periodic badge update timer (every 2 seconds)
         _notificationTimer = new Timer { Interval = 2000 };
         _notificationTimer.Tick += (s, e) => UpdateNotificationBadge();
         _notificationTimer.Start();
-
-        // Update badge on form load
         UpdateNotificationBadge();
     }
 
@@ -283,12 +560,8 @@ public class MainShell : XtraForm
             Invoke(new Action(() => OnNotificationRaised(sender, notification)));
             return;
         }
-
-        // Show toast popup
         var toast = new ToastNotificationForm(notification);
         toast.Show(this);
-
-        // Update badge count
         UpdateNotificationBadge();
     }
 
@@ -302,13 +575,9 @@ public class MainShell : XtraForm
     private void ToggleNotificationPopup(object? sender, EventArgs e)
     {
         if (_notificationPopup != null && _notificationPopup.Visible)
-        {
             CloseNotificationPopup();
-        }
         else
-        {
             ShowNotificationPopup();
-        }
     }
 
     private void ShowNotificationPopup()
@@ -317,53 +586,56 @@ public class MainShell : XtraForm
         {
             _notificationPopup = new Form
             {
-                Width = 380,
-                Height = 400,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
+                Width = 400,
+                Height = 420,
+                FormBorderStyle = FormBorderStyle.None,
                 ControlBox = false,
                 ShowInTaskbar = false,
                 StartPosition = FormStartPosition.Manual,
-                BackColor = DesignTokens.SurfaceColor,
+                BackColor = DesignTokens.Colors.Surface,
                 RightToLeft = RightToLeft.Yes,
                 RightToLeftLayout = true,
                 Text = "الإشعارات"
             };
+            _notificationPopup.Paint += (s, e) =>
+            {
+                using var path = DesignTokens.CreateRoundedRect(_notificationPopup.ClientRectangle, DesignTokens.Radius.Lg);
+                _notificationPopup.Region = new Region(path);
+                using var pen = new Pen(DesignTokens.Colors.Border, 1);
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.DrawPath(pen, path);
+            };
 
-            // Header
             var headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 40,
-                BackColor = DesignTokens.PrimaryColor,
-                Padding = new Padding(8, 0, 8, 0)
+                Height = 52,
+                BackColor = DesignTokens.Colors.Surface,
+                Padding = new Padding(14, 0, 14, 0)
             };
 
             var headerTitle = new Label
             {
                 Text = "الإشعارات",
-                Font = new Font(_arabicFont.FontFamily, 11f, FontStyle.Bold),
-                ForeColor = Color.White,
+                Font = _arabicHeader,
+                ForeColor = DesignTokens.Colors.TextPrimary,
                 Dock = DockStyle.Right,
                 TextAlign = ContentAlignment.MiddleRight,
                 AutoSize = false,
-                Width = 200,
-                Height = 40
+                Width = 220,
+                Height = 52,
+                RightToLeft = RightToLeft.Yes
             };
 
-            var btnMarkAllRead = new Button
+            var btnMarkAllRead = new RtlButton
             {
                 Text = "تحديد الكل كمقروء",
-                Font = new Font(_arabicFont.FontFamily, 8f),
-                FlatStyle = FlatStyle.Flat,
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(255, 255, 255, 40),
-                Size = new Size(120, 28),
+                Type = RtlButton.ButtonType.Ghost,
+                Size = new Size(130, 32),
                 Dock = DockStyle.Left,
-                Cursor = Cursors.Hand,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Margin = new Padding(4, 0, 0, 0)
+                CornerRadius = DesignTokens.Radius.Md,
+                Font = FontLoader.GetArabicFont(9f)
             };
-            btnMarkAllRead.FlatAppearance.BorderSize = 0;
             btnMarkAllRead.Click += (s, e) =>
             {
                 _notificationService.MarkAllAsRead();
@@ -374,28 +646,26 @@ public class MainShell : XtraForm
             headerPanel.Controls.Add(headerTitle);
             headerPanel.Controls.Add(btnMarkAllRead);
 
-            // Notification list (scrollable)
             _notificationListPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
                 AutoScroll = true,
-                Padding = new Padding(4),
-                BackColor = DesignTokens.BackgroundColor
+                Padding = new Padding(8),
+                BackColor = DesignTokens.Colors.Background
             };
 
-            _notificationPopup.Controls.Add(_notificationListPanel);
             _notificationPopup.Controls.Add(headerPanel);
+            _notificationPopup.Controls.Add(_notificationListPanel);
         }
 
         RefreshNotificationList();
 
-        // Position below the bell icon
         var bellScreenPos = _btnNotificationBell.PointToScreen(Point.Empty);
         _notificationPopup.Location = new Point(
             bellScreenPos.X + _btnNotificationBell.Width - _notificationPopup.Width,
-            bellScreenPos.Y + _btnNotificationBell.Height + 2);
+            bellScreenPos.Y + _btnNotificationBell.Height + 4);
         _notificationPopup.Show(this);
         _notificationPopup.BringToFront();
     }
@@ -403,7 +673,6 @@ public class MainShell : XtraForm
     private void RefreshNotificationList()
     {
         if (_notificationListPanel == null) return;
-
         _notificationListPanel.Controls.Clear();
 
         var notifications = _notificationService.Notifications
@@ -417,12 +686,13 @@ public class MainShell : XtraForm
             _notificationListPanel.Controls.Add(new Label
             {
                 Text = "لا توجد إشعارات",
-                Font = DesignTokens.DefaultFont,
-                ForeColor = DesignTokens.TextSecondaryColor,
+                Font = DesignTokens.Typography.Body,
+                ForeColor = DesignTokens.Colors.TextSecondary,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Width = 370,
                 Height = 60,
-                Padding = new Padding(10)
+                Padding = new Padding(10),
+                RightToLeft = RightToLeft.Yes
             });
             return;
         }
@@ -433,20 +703,14 @@ public class MainShell : XtraForm
             _notificationListPanel.Controls.Add(item);
         }
 
-        // "View all" link
-        var viewAllBtn = new Button
+        var viewAllBtn = new RtlButton
         {
             Text = "عرض الكل...",
-            Font = DesignTokens.SmallFont,
-            FlatStyle = FlatStyle.Flat,
-            ForeColor = DesignTokens.PrimaryColor,
-            BackColor = Color.Transparent,
-            Width = 370,
-            Height = 28,
-            Cursor = Cursors.Hand,
-            TextAlign = ContentAlignment.MiddleCenter
+            Type = RtlButton.ButtonType.Ghost,
+            Size = new Size(370, 32),
+            CornerRadius = DesignTokens.Radius.Md,
+            Font = FontLoader.GetArabicFont(9.5f)
         };
-        viewAllBtn.FlatAppearance.BorderSize = 0;
         viewAllBtn.Click += (s, e) =>
         {
             CloseNotificationPopup();
@@ -459,27 +723,40 @@ public class MainShell : XtraForm
     {
         var panel = new Panel
         {
-            Width = 368,
-            Height = 64,
-            BackColor = notification.IsRead ? DesignTokens.BackgroundColor : Color.FromArgb(240, 248, 255),
-            Margin = new Padding(0, 0, 0, 2),
-            Padding = new Padding(8, 4, 8, 4),
+            Width = 370,
+            Height = 72,
+            BackColor = notification.IsRead ? DesignTokens.Colors.Background : DesignTokens.Colors.InfoSoft,
+            Margin = new Padding(0, 0, 0, 4),
+            Padding = new Padding(10, 6, 10, 6),
             Cursor = Cursors.Hand
+        };
+        panel.Paint += (s, e) =>
+        {
+            using var path = DesignTokens.CreateRoundedRect(panel.ClientRectangle, DesignTokens.Radius.Md);
+            panel.Region = new Region(path);
         };
 
         var iconChar = notification.Type switch
         {
-            NotifType.Success => "✅",
-            NotifType.Warning => "⚠️",
-            NotifType.Error => "❌",
-            _ => "ℹ️"
+            NotifType.Success => FontAwesomeIcons.Success,
+            NotifType.Warning => FontAwesomeIcons.Warning,
+            NotifType.Error => FontAwesomeIcons.Error,
+            _ => FontAwesomeIcons.Info
+        };
+        var iconColor = notification.Type switch
+        {
+            NotifType.Success => DesignTokens.Colors.Success,
+            NotifType.Warning => DesignTokens.Colors.Warning,
+            NotifType.Error => DesignTokens.Colors.Error,
+            _ => DesignTokens.Colors.Info
         };
 
         var iconLabel = new Label
         {
             Text = iconChar,
-            Font = new Font("Segoe UI Emoji", 14f),
-            Location = new Point(340, 8),
+            Font = _iconFont,
+            ForeColor = iconColor,
+            Location = new Point(8, 10),
             Size = new Size(24, 24),
             TextAlign = ContentAlignment.MiddleCenter
         };
@@ -487,54 +764,53 @@ public class MainShell : XtraForm
         var titleLabel = new Label
         {
             Text = notification.Title,
-            Font = new Font(_arabicFont.FontFamily, 9f, FontStyle.Bold),
-            ForeColor = DesignTokens.TextPrimaryColor,
-            Location = new Point(40, 6),
-            Size = new Size(290, 18),
-            TextAlign = ContentAlignment.MiddleRight
+            Font = _arabicBold,
+            ForeColor = DesignTokens.Colors.TextPrimary,
+            Location = new Point(40, 4),
+            Size = new Size(290, 22),
+            TextAlign = ContentAlignment.MiddleRight,
+            RightToLeft = RightToLeft.Yes
         };
 
         var messageLabel = new Label
         {
             Text = notification.Message,
-            Font = new Font(_arabicFont.FontFamily, 8f),
-            ForeColor = DesignTokens.TextSecondaryColor,
+            Font = DesignTokens.Typography.Secondary,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Location = new Point(40, 26),
-            Size = new Size(290, 18),
+            Size = new Size(290, 20),
             TextAlign = ContentAlignment.MiddleRight,
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            RightToLeft = RightToLeft.Yes
         };
 
         var timeLabel = new Label
         {
             Text = notification.Timestamp.ToString("HH:mm"),
-            Font = new Font(_arabicFont.FontFamily, 7f),
-            ForeColor = DesignTokens.TextHintColor,
-            Location = new Point(40, 44),
-            Size = new Size(100, 14),
+            Font = DesignTokens.Typography.Caption,
+            ForeColor = DesignTokens.Colors.TextHint,
+            Location = new Point(40, 46),
+            Size = new Size(100, 16),
             TextAlign = ContentAlignment.MiddleRight
         };
 
-        // Unread indicator dot
         if (!notification.IsRead)
         {
             var dot = new Label
             {
                 Text = "●",
                 Font = new Font("Segoe UI", 6f),
-                ForeColor = DesignTokens.PrimaryColor,
-                Location = new Point(12, 10),
+                ForeColor = DesignTokens.Colors.Primary,
+                Location = new Point(352, 12),
                 Size = new Size(12, 12),
                 TextAlign = ContentAlignment.MiddleCenter
             };
             panel.Controls.Add(dot);
         }
 
-        // Hover effect
-        panel.MouseEnter += (s, e) => panel.BackColor = _hoverBack;
-        panel.MouseLeave += (s, e) => panel.BackColor = notification.IsRead ? DesignTokens.BackgroundColor : Color.FromArgb(240, 248, 255);
+        panel.MouseEnter += (s, e) => panel.BackColor = DesignTokens.Colors.PrimaryLighter;
+        panel.MouseLeave += (s, e) => panel.BackColor = notification.IsRead ? DesignTokens.Colors.Background : DesignTokens.Colors.InfoSoft;
 
-        // Click to mark as read and dismiss
         panel.Click += (s, e) =>
         {
             _notificationService.MarkAsRead(notification.Id);
@@ -558,175 +834,24 @@ public class MainShell : XtraForm
             _notificationPopup.Hide();
     }
 
-    /// <summary>
-    /// Shows a notification from anywhere using the global notification service.
-    /// Convenience method for forms that don't have direct access to INotificationService.
-    /// </summary>
     public static void Notify(string title, string message,
-        NotifType type = NotifType.Info,
-        NotifCat category = NotifCat.General)
+        NotifType type = NotifType.Info, NotifCat category = NotifCat.General)
     {
         var service = AppServiceProvider.Provider?.GetService(typeof(NotifSvc)) as NotifSvc;
         if (service == null) return;
 
         switch (type)
         {
-            case NotifType.Success:
-                service.ShowSuccess(title, message, category);
-                break;
-            case NotifType.Warning:
-                service.ShowWarning(title, message, category);
-                break;
-            case NotifType.Error:
-                service.ShowError(title, message, category);
-                break;
-            default:
-                service.ShowInfo(title, message, category);
-                break;
+            case NotifType.Success: service.ShowSuccess(title, message, category); break;
+            case NotifType.Warning: service.ShowWarning(title, message, category); break;
+            case NotifType.Error: service.ShowError(title, message, category); break;
+            default: service.ShowInfo(title, message, category); break;
         }
     }
 
-    private void InitializeNavSidebar()
-    {
-        _sidebar = new PanelControl
-        {
-            Dock = DockStyle.Right,
-            Width = 240,
-            RightToLeft = RightToLeft.Yes,
-            Padding = new Padding(DesignTokens.Spacing.Compact, DesignTokens.Spacing.Standard, DesignTokens.Spacing.Compact, DesignTokens.Spacing.Compact)
-        };
-
-        var headerLabel = new LabelControl
-        {
-            Text = "القائمة الرئيسية",
-            Font = _headerFont,
-            ForeColor = Colors.TextPrimary,
-            Dock = DockStyle.Top,
-            Height = 36
-        };
-
-        _navPanel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false,
-            AutoScroll = true,
-            BackColor = Color.Transparent,
-            Padding = new Padding(0)
-        };
-
-        foreach (var def in _navItemDefs)
-        {
-            var item = CreateNavItem(def.Label, def.Icon, def.Handler);
-            _navPanel.Controls.Add(item);
-
-            // Store panel reference by permission key for later show/hide
-            if (def.RequiredPermission != null)
-            {
-                _navPanelsByPermission[def.RequiredPermission] = item;
-            }
-        }
-
-        _sidebar.Controls.Add(_navPanel);
-        _sidebar.Controls.Add(headerLabel);
-        Controls.Add(_sidebar);
-    }
-
-    /// <summary>
-    /// Creates a navigation item Panel with separate icon (Font Awesome) and text (Arabic) controls
-    /// to avoid WinForms mixed-font rendering issues.
-    /// </summary>
-    private Panel CreateNavItem(string arabicText, string iconChar, EventHandler? clickHandler)
-    {
-        var panel = new Panel
-        {
-            Width = 220,
-            Height = 44,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0, 0, 0, DesignTokens.Spacing.Micro),
-            Cursor = Cursors.Hand
-        };
-
-        // Font Awesome icon label (right-aligned for RTL)
-        var iconLabel = new Label
-        {
-            Text = iconChar,
-            Font = _iconFont,
-            ForeColor = Colors.TextPrimary,
-            Location = new Point(190, 10),
-            Size = new Size(24, 24),
-            TextAlign = ContentAlignment.MiddleCenter,
-            BackColor = Color.Transparent
-        };
-
-        // Arabic text label (to the left of the icon)
-        var textLabel = new Label
-        {
-            Text = arabicText,
-            Font = _arabicFont,
-            ForeColor = Colors.TextPrimary,
-            Location = new Point(30, 10),
-            Size = new Size(155, 24),
-            TextAlign = ContentAlignment.MiddleRight,
-            BackColor = Color.Transparent,
-            RightToLeft = RightToLeft.Yes
-        };
-
-        // Hover effects
-        panel.MouseEnter += (s, e) => panel.BackColor = _hoverBack;
-        panel.MouseLeave += (s, e) => panel.BackColor = Color.Transparent;
-        iconLabel.MouseEnter += (s, e) => panel.BackColor = _hoverBack;
-        iconLabel.MouseLeave += (s, e) => panel.BackColor = Color.Transparent;
-        textLabel.MouseEnter += (s, e) => panel.BackColor = _hoverBack;
-        textLabel.MouseLeave += (s, e) => panel.BackColor = Color.Transparent;
-
-        // Click handler on both the panel and child controls
-        panel.Click += (s, e) => clickHandler?.Invoke(this, e);
-        iconLabel.Click += (s, e) => clickHandler?.Invoke(this, e);
-        textLabel.Click += (s, e) => clickHandler?.Invoke(this, e);
-
-        panel.Controls.Add(textLabel);
-        panel.Controls.Add(iconLabel);
-
-        return panel;
-    }
-
-    private void InitializeContentArea()
-    {
-        _contentArea = new PanelControl
-        {
-            Dock = DockStyle.Fill,
-            RightToLeft = RightToLeft.Yes,
-            Padding = new Padding(DesignTokens.Spacing.Standard)
-        };
-        Controls.Add(_contentArea);
-    }
-
-    private void InitializeClock()
-    {
-        _clockTimer = new System.Windows.Forms.Timer { Interval = 1000 };
-        _clockTimer.Tick += (s, e) =>
-        {
-            _lblDateTime.Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm");
-        };
-        _clockTimer.Start();
-    }
-
-    private void ApplyTheme()
-    {
-        try
-        {
-            DevExpress.Skins.SkinManager.EnableFormSkins();
-            try { DevExpress.UserSkins.BonusSkins.Register(); } catch { }
-            _defaultLookAndFeel = new DefaultLookAndFeel();
-            _defaultLookAndFeel.LookAndFeel.SkinName = "Office 2022 Colorful";
-        }
-        catch
-        {
-            _defaultLookAndFeel = new DefaultLookAndFeel();
-            _defaultLookAndFeel.LookAndFeel.Style = LookAndFeelStyle.UltraFlat;
-        }
-    }
+    // ========================================================================
+    // Navigation
+    // ========================================================================
 
     public void NavigateTo(UserControl control)
     {
@@ -735,19 +860,13 @@ public class MainShell : XtraForm
         _contentArea.Controls.Add(control);
     }
 
-    /// <summary>
-    /// Creates a POS terminal form, wires its payment/retrieve events to the appropriate dialogs,
-    /// and navigates to it.
-    /// </summary>
     public void NavigateToPOS(IServiceProvider serviceProvider)
     {
         var posTerminal = serviceProvider.GetRequiredService<PosTerminalForm>();
 
-        // Wire payment request → show PaymentDialog
         posTerminal.RequestPayment += (sender, paymentRequest) =>
         {
             if (sender is not PosTerminalForm pos) return;
-
             var saleService = serviceProvider.GetService<POS.Application.Services.ISaleService>();
             using var paymentDialog = saleService != null
                 ? new PaymentDialog(paymentRequest.Amount, paymentRequest.SaleId, saleService)
@@ -755,218 +874,91 @@ public class MainShell : XtraForm
 
             paymentDialog.PaymentSucceeded += (ps, pe) =>
             {
-                // Read the change amount from PaymentDialog's public property
                 var change = paymentDialog.ChangeAmount;
                 pos.OnPaymentSuccess(change);
-
-                // Send notification
-                _notificationService.ShowSuccess(
-                    "تمت عملية الدفع بنجاح",
-                    $"تم دفع {paymentRequest.Amount:N3} JOD بنجاح",
-                    NotifCat.Sale);
+                _notificationService.ShowSuccess("تمت عملية الدفع بنجاح",
+                    $"تم دفع {paymentRequest.Amount:N3} JOD بنجاح", NotifCat.Sale);
             };
-
-            paymentDialog.PaymentCancelled += (ps, pe) =>
-            {
-                // Return to active sale state
-            };
-
+            paymentDialog.PaymentCancelled += (ps, pe) => { };
             paymentDialog.ShowDialog(this);
         };
 
-        // Wire hold request
         posTerminal.RequestHold += (sender, e) =>
         {
-            _notificationService.ShowInfo(
-                "تم تعليق الفاتورة",
-                "تم تعليق الفاتورة بنجاح",
-                NotifCat.Sale);
+            _notificationService.ShowInfo("تم تعليق الفاتورة", "تم تعليق الفاتورة بنجاح", NotifCat.Sale);
         };
 
-        // Wire retrieve request
         posTerminal.RequestRetrieve += (sender, e) =>
         {
-            _notificationService.ShowInfo(
-                "تم استرجاع الفاتورة",
-                "تم استرجاع الفاتورة المعلقة بنجاح",
-                NotifCat.Sale);
+            _notificationService.ShowInfo("تم استرجاع الفاتورة", "تم استرجاع الفاتورة المعلقة بنجاح", NotifCat.Sale);
         };
 
-        // Load products and categories
         _ = posTerminal.LoadCategoriesAsync();
         _ = posTerminal.LoadProductsAsync();
         posTerminal.InitializeBarcodeScanner();
-
         NavigateTo(posTerminal);
     }
 
-    /// <summary>
-    /// Checks ChangeSettings permission before allowing logout.
-    /// Only users with settings management permission can log out.
-    /// </summary>
+    // ========================================================================
+    // Permission Checks
+    // ========================================================================
+
     private async Task CheckLogoutPermissionAsync()
     {
         if (_currentUserId == Guid.Empty)
-        {
-            OnLogout?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+        { OnLogout?.Invoke(this, EventArgs.Empty); return; }
 
         if (AppServiceProvider.Provider == null)
-        {
-            OnLogout?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+        { OnLogout?.Invoke(this, EventArgs.Empty); return; }
 
-        var authService = AppServiceProvider.Provider.GetService(typeof(IAuthService)) as IAuthService;
-        if (authService == null)
-        {
-            OnLogout?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+        using var scope = AppServiceProvider.Provider.CreateScope();
+        var authService = scope.ServiceProvider.GetService(typeof(IAuthService)) as IAuthService;
+        if (authService == null) { OnLogout?.Invoke(this, EventArgs.Empty); return; }
 
         try
         {
-            var hasPermission = await authService.HasPermissionAsync(_currentUserId, "ChangeSettings");
-            if (hasPermission)
-            {
+            if (await authService.HasPermissionAsync(_currentUserId, "ChangeSettings"))
                 OnLogout?.Invoke(this, EventArgs.Empty);
-            }
             else
-            {
-                MessageBox.Show(
-                    "ليس لديك صلاحية تسجيل الخروج. يرجى التواصل مع مدير النظام.",
-                    "صلاحية مقفلة",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button1,
-                    MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
-            }
+                MessageBox.Show("ليس لديك صلاحية تسجيل الخروج. يرجى التواصل مع مدير النظام.",
+                    "صلاحية مقفلة", MessageBoxButtons.OK, MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
-        catch
-        {
-            OnLogout?.Invoke(this, EventArgs.Empty);
-        }
+        catch { OnLogout?.Invoke(this, EventArgs.Empty); }
+    }
+
+    private async Task CheckLockPermissionAsync()
+    {
+        if (_currentUserId == Guid.Empty) { OnLock?.Invoke(this, EventArgs.Empty); return; }
+        OnLock?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
-    /// Stores the authenticated user context and triggers an async permission check
-    /// to show/hide nav items based on their role permissions.
+    /// Stores the authenticated user context and shows/hides nav items based on permissions.
     /// </summary>
-    public void SetUserContext(Guid userId, string userName, string role)
+    public void SetUserContext(Guid userId, string userName, string role, List<string> permissions)
     {
         _currentUserId = userId;
         _currentRole = role;
-        _lblCurrentUser.Text = $"{userName} :المستخدم";
+        _lblCurrentUser.Text = $"المستخدم: {userName}";
 
-        // Fire-and-forget the permission check so the UI stays responsive
-        _ = ApplyPermissionsAsync();
+        // Apply permission visibility
+        foreach (var (permission, panel) in _navPanelsByPermission)
+        {
+            var hasPermission = permissions.Count == 0 ||
+                permissions.Contains(permission, StringComparer.OrdinalIgnoreCase) ||
+                role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            panel.Visible = hasPermission;
+        }
+
+        // Highlight dashboard by default
+        if (_navPanelsByPermission.TryGetValue("ViewDashboard", out var dashItem))
+            SetActiveNavItem(dashItem);
     }
 
-    /// <summary>
-    /// Updates shift display info.
-    /// </summary>
-    public void UpdateShiftInfo(string shiftInfo)
+    public void SetShiftInfo(string shiftInfo)
     {
         _lblShift.Text = shiftInfo;
-    }
-
-    /// <summary>
-    /// Checks ChangeSettings permission before allowing lock.
-    /// Only users with settings management permission can lock the system.
-    /// </summary>
-    private async Task CheckLockPermissionAsync()
-    {
-        if (_currentUserId == Guid.Empty)
-        {
-            OnLock?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        if (AppServiceProvider.Provider == null)
-        {
-            OnLock?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        var authService = AppServiceProvider.Provider.GetService(typeof(IAuthService)) as IAuthService;
-        if (authService == null)
-        {
-            OnLock?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        try
-        {
-            var hasPermission = await authService.HasPermissionAsync(_currentUserId, "ChangeSettings");
-            if (hasPermission)
-            {
-                OnLock?.Invoke(this, EventArgs.Empty);
-            }
-            else
-            {
-                MessageBox.Show(
-                    "ليس لديك صلاحية قفل النظام. يرجى التواصل مع مدير النظام.",
-                    "صلاحية مقفلة",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning,
-                    MessageBoxDefaultButton.Button1,
-                    MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
-            }
-        }
-        catch
-        {
-            // On error, allow lock as safe default
-            OnLock?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    /// <summary>
-    /// Updates user display info (kept for backwards compatibility — delegates to SetUserContext).
-    /// </summary>
-    public void UpdateUserInfo(string userName, string shiftInfo)
-    {
-        _lblCurrentUser.Text = $"{userName} :المستخدم";
-        _lblShift.Text = shiftInfo;
-    }
-
-    /// <summary>
-    /// Asynchronously checks permissions and hides nav items the user lacks access to.
-    /// Items with no RequiredPermission are always visible.
-    /// If no user context is set or AuthService is unavailable, all items remain visible.
-    /// </summary>
-    public async Task ApplyPermissionsAsync()
-    {
-        if (_currentUserId == Guid.Empty)
-            return;
-
-        if (AppServiceProvider.Provider == null)
-            return;
-
-        var authService = AppServiceProvider.Provider.GetService(typeof(IAuthService)) as IAuthService;
-        if (authService == null)
-            return;
-
-        foreach (var def in _navItemDefs)
-        {
-            var permission = def.RequiredPermission;
-            if (permission == null)
-                continue; // Always visible
-
-            if (!_navPanelsByPermission.TryGetValue(permission, out var panel))
-                continue;
-
-            try
-            {
-                var hasPermission = await authService.HasPermissionAsync(_currentUserId, permission);
-                panel.Visible = hasPermission;
-            }
-            catch
-            {
-                // On error (e.g. DB unavailable), keep item visible as safe default
-                panel.Visible = true;
-            }
-        }
     }
 
     protected override void Dispose(bool disposing)
@@ -977,6 +969,9 @@ public class MainShell : XtraForm
             _clockTimer?.Dispose();
             _notificationTimer?.Stop();
             _notificationTimer?.Dispose();
+            _notificationService.NotificationRaised -= OnNotificationRaised;
+            _notificationPopup?.Dispose();
+            _defaultLookAndFeel?.Dispose();
         }
         base.Dispose(disposing);
     }

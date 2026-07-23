@@ -97,48 +97,59 @@ public class InventoryService : IInventoryService
         var product = await _unitOfWork.Products.GetByIdAsync(request.ProductId);
         if (product is null)
             return new OperationResult(false, ErrorMessage: "المنتج غير موجود");
-        var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == request.ProductId)).FirstOrDefault();
 
-        if (inventory is null)
+        await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            // Create inventory record if it doesn't exist
-            inventory = new InventoryItem
+            var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == request.ProductId)).FirstOrDefault();
+
+            if (inventory is null)
+            {
+                // Create inventory record if it doesn't exist
+                inventory = new InventoryItem
+                {
+                    ProductId = request.ProductId,
+                    Quantity = 0,
+                    ReservedQuantity = 0
+                };
+                await _unitOfWork.InventoryItems.AddAsync(inventory);
+            }
+
+            if (request.NewQuantity < 0)
+                return new OperationResult(false, ErrorMessage: "الكمية لا يمكن أن تكون سالبة");
+
+            var beforeQty = inventory.Quantity;
+            var difference = request.NewQuantity - inventory.Quantity;
+            inventory.Quantity = request.NewQuantity;
+            inventory.MarkAsModified(userId);
+
+            var movement = new InventoryMovement
             {
                 ProductId = request.ProductId,
-                Quantity = 0,
-                ReservedQuantity = 0
+                MovementType = MovementType.Adjustment,
+                Quantity = difference,
+                BeforeQuantity = beforeQty,
+                AfterQuantity = request.NewQuantity,
+                Reason = request.Reason,
+                UserId = userId
             };
-            await _unitOfWork.InventoryItems.AddAsync(inventory);
-            await _unitOfWork.SaveChangesAsync();
+
+            await _unitOfWork.InventoryItems.UpdateAsync(inventory);
+            await _unitOfWork.InventoryMovements.AddAsync(movement);
+
+            await _auditService.LogAsync(userId, AuditActionType.InventoryAdjusted, "InventoryItem", inventory.Id,
+                $"Quantity={beforeQty}", $"Quantity={request.NewQuantity}", request.Reason);
+
+            await _unitOfWork.CommitAsync();
+
+            return new OperationResult(true, SuccessMessage: "تم تعديل المخزون بنجاح");
         }
-
-        if (request.NewQuantity < 0)
-            return new OperationResult(false, ErrorMessage: "الكمية لا يمكن أن تكون سالبة");
-
-        var beforeQty = inventory.Quantity;
-        var difference = request.NewQuantity - inventory.Quantity;
-        inventory.Quantity = request.NewQuantity;
-        inventory.MarkAsModified(userId);
-
-        var movement = new InventoryMovement
+        catch (Exception ex)
         {
-            ProductId = request.ProductId,
-            MovementType = MovementType.Adjustment,
-            Quantity = difference,
-            BeforeQuantity = beforeQty,
-            AfterQuantity = request.NewQuantity,
-            Reason = request.Reason,
-            UserId = userId
-        };
-
-        await _unitOfWork.InventoryItems.UpdateAsync(inventory);
-        await _unitOfWork.InventoryMovements.AddAsync(movement);
-        await _unitOfWork.SaveChangesAsync();
-
-        await _auditService.LogAsync(userId, AuditActionType.InventoryAdjusted, "InventoryItem", inventory.Id,
-            $"Quantity={beforeQty}", $"Quantity={request.NewQuantity}", request.Reason);
-
-        return new OperationResult(true, SuccessMessage: "تم تعديل المخزون بنجاح");
+            await _unitOfWork.RollbackAsync();
+            System.Diagnostics.Trace.TraceError("AdjustStockAsync failed: {0}", ex);
+            return new OperationResult(false, ErrorMessage: "حدث خطأ أثناء تعديل المخزون");
+        }
     }
 
     public async Task<OperationResult> RecordWasteAsync(WasteRecordRequest request, Guid userId)
@@ -151,46 +162,56 @@ public class InventoryService : IInventoryService
         if (request.Quantity <= 0)
             return new OperationResult(false, ErrorMessage: "الكمية يجب أن تكون أكبر من صفر");
 
-        var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == request.ProductId)).FirstOrDefault();
-
-        if (inventory is null)
+        await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            inventory = new InventoryItem
+            var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == request.ProductId)).FirstOrDefault();
+
+            if (inventory is null)
+            {
+                inventory = new InventoryItem
+                {
+                    ProductId = request.ProductId,
+                    Quantity = 0,
+                    ReservedQuantity = 0
+                };
+                await _unitOfWork.InventoryItems.AddAsync(inventory);
+            }
+
+            if (inventory.Quantity < request.Quantity)
+                return new OperationResult(false, ErrorMessage: "الكمية المطلوبة إتلافها أكبر من المخزون المتاح");
+
+            var beforeQty = inventory.Quantity;
+            inventory.Quantity = MoneyPolicy.RoundToJOD(inventory.Quantity - request.Quantity);
+            inventory.MarkAsModified(userId);
+
+            var movement = new InventoryMovement
             {
                 ProductId = request.ProductId,
-                Quantity = 0,
-                ReservedQuantity = 0
+                MovementType = MovementType.Waste,
+                Quantity = -request.Quantity,
+                BeforeQuantity = beforeQty,
+                AfterQuantity = inventory.Quantity,
+                Reason = request.Reason,
+                UserId = userId
             };
-            await _unitOfWork.InventoryItems.AddAsync(inventory);
-            await _unitOfWork.SaveChangesAsync();
+
+            await _unitOfWork.InventoryItems.UpdateAsync(inventory);
+            await _unitOfWork.InventoryMovements.AddAsync(movement);
+
+            await _auditService.LogAsync(userId, AuditActionType.WasteRecorded, "InventoryItem", inventory.Id,
+                $"Quantity={beforeQty}", $"Quantity={inventory.Quantity}", request.Reason);
+
+            await _unitOfWork.CommitAsync();
+
+            return new OperationResult(true, SuccessMessage: "تم تسجيل الإتلاف بنجاح");
         }
-
-        if (inventory.Quantity < request.Quantity)
-            return new OperationResult(false, ErrorMessage: "الكمية المطلوبة إتلافها أكبر من المخزون المتاح");
-
-        var beforeQty = inventory.Quantity;
-        inventory.Quantity = MoneyPolicy.RoundToJOD(inventory.Quantity - request.Quantity);
-        inventory.MarkAsModified(userId);
-
-        var movement = new InventoryMovement
+        catch (Exception ex)
         {
-            ProductId = request.ProductId,
-            MovementType = MovementType.Waste,
-            Quantity = -request.Quantity,
-            BeforeQuantity = beforeQty,
-            AfterQuantity = inventory.Quantity,
-            Reason = request.Reason,
-            UserId = userId
-        };
-
-        await _unitOfWork.InventoryItems.UpdateAsync(inventory);
-        await _unitOfWork.InventoryMovements.AddAsync(movement);
-        await _unitOfWork.SaveChangesAsync();
-
-        await _auditService.LogAsync(userId, AuditActionType.WasteRecorded, "InventoryItem", inventory.Id,
-            $"Quantity={beforeQty}", $"Quantity={inventory.Quantity}", request.Reason);
-
-        return new OperationResult(true, SuccessMessage: "تم تسجيل الإتلاف بنجاح");
+            await _unitOfWork.RollbackAsync();
+            System.Diagnostics.Trace.TraceError("RecordWasteAsync failed: {0}", ex);
+            return new OperationResult(false, ErrorMessage: "حدث خطأ أثناء تسجيل الإتلاف");
+        }
     }
 
     public async Task<OperationResult> ProcessPurchaseReceivedAsync(Guid purchaseOrderId, Guid userId)
@@ -217,8 +238,8 @@ public class InventoryService : IInventoryService
 
                 if (inventory is null)
                 {
-                    // If no InventoryItem exists, throw since PurchaseOrderItems must reference existing inventory
-                    throw new InvalidOperationException($"لم يتم العثور على عنصر المخزون المطلوب (ID: {poItem.InventoryItemId})");
+                    await _unitOfWork.RollbackAsync();
+                    return new OperationResult(false, ErrorMessage: "لم يتم العثور على عنصر المخزون المطلوب");
                 }
 
                 var beforeQty = inventory.Quantity;
@@ -252,12 +273,15 @@ public class InventoryService : IInventoryService
 
             await _unitOfWork.CommitAsync();
 
+            await _auditService.LogAsync(userId, AuditActionType.PurchaseOrderReceived, "PurchaseOrder", purchaseOrderId, null, null, null);
+
             return new OperationResult(true, SuccessMessage: "تم استلام أمر الشراء بنجاح");
         }
-        catch
+        catch (Exception ex)
         {
             await _unitOfWork.RollbackAsync();
-            throw;
+            System.Diagnostics.Trace.TraceError("ProcessPurchaseReceivedAsync failed: {0}", ex);
+            return new OperationResult(false, ErrorMessage: "حدث خطأ أثناء استلام أمر الشراء");
         }
     }
 
@@ -284,7 +308,10 @@ public class InventoryService : IInventoryService
 
                 var inventory = await _unitOfWork.InventoryItems.GetByIdAsync(poItem.InventoryItemId);
                 if (inventory is null)
-                    throw new InvalidOperationException($"لم يتم العثور على عنصر المخزون المطلوب (ID: {poItem.InventoryItemId})");
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return new OperationResult(false, ErrorMessage: "لم يتم العثور على عنصر المخزون المطلوب");
+                }
 
                 var beforeQty = inventory.Quantity;
                 inventory.Quantity = MoneyPolicy.RoundToJOD(inventory.Quantity + qtyToAdd);
@@ -325,6 +352,7 @@ public class InventoryService : IInventoryService
                             SupplierId = po.SupplierId
                         };
                         await _unitOfWork.InventoryBatches.AddAsync(batch);
+                        movement.InventoryBatchId = batch.Id;
                     }
                 }
                 else
@@ -351,12 +379,15 @@ public class InventoryService : IInventoryService
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
 
+            await _auditService.LogAsync(userId, AuditActionType.PurchaseOrderReceived, "PurchaseOrder", purchaseOrderId, null, null, null);
+
             return new OperationResult(true, SuccessMessage: "تم استلام أمر الشراء مع الباتشات بنجاح");
         }
-        catch
+        catch (Exception ex)
         {
             await _unitOfWork.RollbackAsync();
-            throw;
+            System.Diagnostics.Trace.TraceError("ReceivePurchaseOrderWithBatchesAsync failed: {0}", ex);
+            return new OperationResult(false, ErrorMessage: "حدث خطأ أثناء استلام أمر الشراء مع الباتشات");
         }
     }
 }

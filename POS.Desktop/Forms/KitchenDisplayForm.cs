@@ -224,12 +224,13 @@ public class KitchenDisplayForm : UserControl
             _cardsPanel.Controls.Clear();
             var errorLabel = new Label
             {
-                Text = $"خطأ في تحميل الطلبات: {ex.Message}",
+                Text = "حدث خطأ في تحميل الطلبات",
                 Font = DesignTokens.Typography.Body,
                 ForeColor = DesignTokens.Colors.Error,
                 AutoSize = true,
                 TextAlign = ContentAlignment.MiddleCenter
             };
+            System.Diagnostics.Trace.TraceError($"[KitchenDisplayForm] LoadOrdersAsync failed: {ex}");
             _cardsPanel.Controls.Add(errorLabel);
             _cardsPanel.Visible = true;
         }

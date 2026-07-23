@@ -157,8 +157,9 @@ public class CustomerListForm : UserControl
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[CustomerListForm] LoadDataAsync failed: {ex}");
             SetState(CustomerState.Error);
-            RtlMessageBox.Show($"حدث خطأ أثناء تحميل العملاء: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            RtlMessageBox.Show("حدث خطأ أثناء تحميل العملاء", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -211,7 +212,7 @@ public class CustomerListForm : UserControl
         menu.Items.Add(new ToolStripSeparator());
 
         var deleteItem = new ToolStripMenuItem("🗑 حذف");
-        deleteItem.Click += (s, e) => DeleteCustomer(customer);
+        deleteItem.Click += (s, e) => _ = DeleteCustomerAsync(customer);
         menu.Items.Add(deleteItem);
 
         menu.Show(this, PointToClient(MousePosition));
@@ -262,14 +263,15 @@ public class CustomerListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"حدث خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[CustomerListForm] CreateCustomer failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء إنشاء العميل", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
         dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
         dialog.ShowDialog(this.FindForm());
     }
 
-    private void ShowOrderHistory(CustomerDto customer)
+    private async void ShowOrderHistory(CustomerDto customer)
     {
         var dialog = new RtlDialog($"سجل طلبات العميل: {customer.Name}", 700, 450);
         var grid = new RtlGridControl();
@@ -286,7 +288,7 @@ public class CustomerListForm : UserControl
 
         try
         {
-            var orders = _customerService.GetCustomerOrderHistoryAsync(customer.Id).Result;
+            var orders = await _customerService.GetCustomerOrderHistoryAsync(customer.Id);
             foreach (var order in orders)
             {
                 var r = table.NewRow();
@@ -297,8 +299,9 @@ public class CustomerListForm : UserControl
                 table.Rows.Add(r);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[CustomerListForm] ShowOrderHistory failed: {ex}");
             var r = table.NewRow();
             r["InvoiceNumber"] = "---";
             r["Date"] = "---";
@@ -324,7 +327,7 @@ public class CustomerListForm : UserControl
         dialog.ShowDialog(this.FindForm());
     }
 
-    private async void DeleteCustomer(CustomerDto customer)
+    private async Task DeleteCustomerAsync(CustomerDto customer)
     {
         if (RtlDialog.ShowDestructiveConfirm("حذف عميل", $"هل أنت متأكد من حذف العميل \"{customer.Name}\"?\n\nسيتم حذف جميع سجلاته نهائياً.") == DialogResult.OK)
         {
@@ -335,7 +338,8 @@ public class CustomerListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"حدث خطأ أثناء الحذف: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[CustomerListForm] DeleteCustomerAsync failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء حذف العميل", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

@@ -108,9 +108,10 @@ public sealed class TestUnitOfWork : IUnitOfWork
     public ISimpleRepository<BackupRecord> BackupRecords { get; }
     public IRepository<UnitOfMeasure> UnitOfMeasures { get; }
 
-    // --- Transaction methods (no-ops for InMemory) ---
+    // --- Transaction methods (InMemory does not support real transactions,
+    //      but CommitAsync must still persist the unit of work) ---
     public Task BeginTransactionAsync() => Task.CompletedTask;
-    public Task CommitAsync() => Task.CompletedTask;
+    public async Task CommitAsync() => await _context.SaveChangesAsync();
     public Task RollbackAsync() => Task.CompletedTask;
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
     public async Task<bool> CanConnectAsync() => await _context.Database.CanConnectAsync();

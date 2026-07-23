@@ -127,6 +127,15 @@ public class UnitOfWork : IUnitOfWork, IDisposable
         if (_currentTransaction != null)
             return;
 
+        // In-memory provider does not support transactions; we still enter the
+        // transaction scope so that callers can commit/rollback uniformly.
+        if (string.Equals(_context.Database.ProviderName, "Microsoft.EntityFrameworkCore.InMemory", StringComparison.OrdinalIgnoreCase))
+        {
+            // Use a lightweight sentinel transaction so CommitAsync/RollbackAsync know we are in scope.
+            _currentTransaction = new InMemoryDbContextTransaction();
+            return;
+        }
+
         _currentTransaction = await _context.Database.BeginTransactionAsync();
     }
 
@@ -134,8 +143,16 @@ public class UnitOfWork : IUnitOfWork, IDisposable
     {
         try
         {
+            // Persist any pending changes (including those added after an explicit
+            // SaveChangesAsync call, such as audit log entries). This ensures the
+            // transaction is always committed with the complete unit of work.
             await _context.SaveChangesAsync();
-            if (_currentTransaction != null)
+
+            if (_currentTransaction is InMemoryDbContextTransaction inMemoryTx)
+            {
+                await inMemoryTx.CommitAsync();
+            }
+            else if (_currentTransaction != null)
             {
                 await _currentTransaction.CommitAsync();
             }
@@ -159,7 +176,11 @@ public class UnitOfWork : IUnitOfWork, IDisposable
     {
         try
         {
-            if (_currentTransaction != null)
+            if (_currentTransaction is InMemoryDbContextTransaction inMemoryTx)
+            {
+                await inMemoryTx.RollbackAsync();
+            }
+            else if (_currentTransaction != null)
             {
                 await _currentTransaction.RollbackAsync();
             }
@@ -192,7 +213,8 @@ public class UnitOfWork : IUnitOfWork, IDisposable
         try
         {
             return await _context.SaveChangesAsync();
-        }        catch (DbUpdateConcurrencyException ex)
+        }
+        catch (DbUpdateConcurrencyException ex)
         {
             throw new InvalidOperationException("A concurrency error occurred while saving changes.", ex);
         }
@@ -214,5 +236,48 @@ public class UnitOfWork : IUnitOfWork, IDisposable
             _currentTransaction = null;
         }
         _context.Dispose();
+    }
+
+    /// <summary>
+    /// Lightweight transaction implementation for the EF Core InMemory provider,
+    /// which does not support real transactions. It keeps the UnitOfWork contract
+    /// uniform across unit/integration tests and production code.
+    /// </summary>
+    private sealed class InMemoryDbContextTransaction : IDbContextTransaction
+    {
+        public Guid TransactionId { get; } = Guid.NewGuid();
+        public bool IsCommitted { get; private set; }
+        public bool IsRolledBack { get; private set; }
+
+        public Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            IsCommitted = true;
+            return Task.CompletedTask;
+        }
+
+        public Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            IsRolledBack = true;
+            return Task.CompletedTask;
+        }
+
+        public void Commit()
+        {
+            IsCommitted = true;
+        }
+
+        public void Rollback()
+        {
+            IsRolledBack = true;
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
     }
 }

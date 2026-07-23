@@ -348,7 +348,8 @@ public class WithdrawalDepositDialog : RtlDialog
         }
         catch (Exception ex)
         {
-            _lblValidation.Text = $"حدث خطأ أثناء تنفيذ العملية: {ex.Message}";
+            System.Diagnostics.Trace.TraceError($"[WithdrawalDepositDialog] Execute failed: {ex}");
+            _lblValidation.Text = "حدث خطأ أثناء تنفيذ العملية";
             SetState(WdState.Error);
         }
     }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using POS.Application.DTOs;
 using POS.Application.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 using POS.Desktop.Icons;
 using POS.Desktop.Themes;
@@ -369,8 +370,16 @@ public class ProductListForm : UserControl
 
     private void ShowRecipeDialog(ProductDto product)
     {
-        // Resolve IRecipeService from the app-level service provider
-        var recipeService = AppServiceProvider.Provider?.GetService(typeof(IRecipeService)) as IRecipeService;
+        using var scope = AppServiceProvider.Provider?.CreateScope();
+        if (scope == null)
+        {
+            RtlMessageBox.Show("خدمة الوصفات غير متوفرة", "خطأ",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
+            return;
+        }
+
+        var recipeService = scope.ServiceProvider.GetService(typeof(IRecipeService)) as IRecipeService;
         if (recipeService == null)
         {
             RtlMessageBox.Show("خدمة الوصفات غير متوفرة", "خطأ",
@@ -408,6 +417,6 @@ public class ProductListForm : UserControl
             foreach (var cat in cats) _categoryFilterCombo.Items.Add(cat.Name);
             _categoryFilterCombo.SelectedIndex = 0;
         }
-        catch { /* silent */ }
+        catch { System.Diagnostics.Trace.TraceWarning("[ProductList] Failed to load categories for filter"); }
     }
 }

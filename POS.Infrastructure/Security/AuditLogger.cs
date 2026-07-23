@@ -39,7 +39,10 @@ public class AuditLogger : IAuditService
                     .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     ?.ToString() ?? "127.0.0.1";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogDebug("Could not resolve local IP address for audit log: {Message}", ex.Message);
+            }
 
             var entry = new AuditLog
             {

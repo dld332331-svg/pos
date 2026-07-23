@@ -214,6 +214,14 @@ public class InventoryServiceTests
             .Returns(Task.CompletedTask);
         unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(poItemRepoMock.Object);
 
+        // ---- InventoryBatches repository ----
+        var batchRepoMock = new Mock<IRepository<InventoryBatch>>();
+        batchRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<InventoryBatch>()))
+            .Callback<InventoryBatch>(b => { if (b.Id == Guid.Empty) b.Id = Guid.NewGuid(); })
+            .Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(batchRepoMock.Object);
+
         // ---- Stub remaining repos ----
         unitOfWorkMock.Setup(u => u.Sales).Returns(emptyRepoMock.Object);
         unitOfWorkMock.Setup(u => u.Categories).Returns(new Mock<IRepository<Category>>().Object);
@@ -768,12 +776,239 @@ public class InventoryServiceTests
             purchaseOrder: purchaseOrder,
             poItems: poItems);
 
-        // Act — InventoryItem doesn't exist, so GetByIdAsync returns null → throws
-        var act = () => service.ProcessPurchaseReceivedAsync(poId, userId);
+        // Act — InventoryItem doesn't exist, so GetByIdAsync returns null → failure
+        var result = await service.ProcessPurchaseReceivedAsync(poId, userId);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage($"*لم يتم العثور على عنصر المخزون المطلوب (ID: {poItem.InventoryItemId})*");
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("لم يتم العثور على عنصر المخزون المطلوب");
+    }
+
+    // ========================================================================
+    // ReceivePurchaseOrderWithBatchesAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_PendingPOWithBatches_CreatesBatchRecords()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var productId = DefaultProductId;
+        var poId = Guid.NewGuid();
+        var purchaseOrder = CreatePurchaseOrder(poId, "PO-001", "Pending");
+
+        var product = CreateProduct(productId, arabicName: "قهوة");
+        var inventory = CreateInventory(productId, quantity: 5m);
+
+        var poItem = new PurchaseOrderItem
+        {
+            Id = Guid.NewGuid(),
+            PurchaseOrderId = poId,
+            InventoryItemId = inventory.Id,
+            ItemName = "قهوة",
+            Quantity = 10m,
+            ReceivedQuantity = 0m,
+            UnitCost = 5.000m,
+            TotalCost = 50.000m
+        };
+        var poItems = new List<PurchaseOrderItem> { poItem };
+
+        var batches = new List<ReceiveBatchDto>
+        {
+            new(inventory.Id, Quantity: 6m, BatchNumber: "BATCH-001",
+                ExpiryDate: new DateTime(2027, 1, 1), ManufacturingDate: new DateTime(2026, 7, 1), UnitCost: 5.000m),
+            new(inventory.Id, Quantity: 4m, BatchNumber: "BATCH-002",
+                ExpiryDate: new DateTime(2027, 6, 1), ManufacturingDate: new DateTime(2026, 7, 15), UnitCost: 5.000m)
+        };
+
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks(
+            products: new List<Product> { product },
+            inventoryItems: new List<InventoryItem> { inventory },
+            purchaseOrder: purchaseOrder,
+            poItems: poItems);
+
+        // Act
+        var result = await service.ReceivePurchaseOrderWithBatchesAsync(poId, userId, batches);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.SuccessMessage.Should().Contain("الباتشات");
+
+        // Inventory quantity increased: 5 + 10 = 15
+        unitOfWorkMock.Verify(u => u.InventoryItems.UpdateAsync(
+            It.Is<InventoryItem>(inv => inv.Quantity == 15m)), Times.Once);
+
+        // Two batches created
+        unitOfWorkMock.Verify(u => u.InventoryBatches.AddAsync(
+            It.Is<InventoryBatch>(b => b.BatchNumber == "BATCH-001")), Times.Once);
+        unitOfWorkMock.Verify(u => u.InventoryBatches.AddAsync(
+            It.Is<InventoryBatch>(b => b.BatchNumber == "BATCH-002")), Times.Once);
+
+        // Verify batch details
+        unitOfWorkMock.Verify(u => u.InventoryBatches.AddAsync(
+            It.Is<InventoryBatch>(b =>
+                b.InventoryItemId == inventory.Id &&
+                b.Quantity == 6m &&
+                b.UnitCost == 5.000m &&
+                b.ExpiryDate.HasValue &&
+                b.ExpiryDate!.Value.Year == 2027)), Times.Once);
+
+        // PO status changed to Received
+        unitOfWorkMock.Verify(u => u.PurchaseOrders.UpdateAsync(
+            It.Is<PurchaseOrder>(po => po.Status == "Received")), Times.Once);
+
+        // Transaction committed
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_NoBatchesProvided_CreatesDefaultBatch()
+    {
+        // Arrange — empty batches list
+        var userId = Guid.NewGuid();
+        var productId = DefaultProductId;
+        var poId = Guid.NewGuid();
+        var purchaseOrder = CreatePurchaseOrder(poId, "PO-002", "Pending");
+
+        var product = CreateProduct(productId, arabicName: "شاي");
+        var inventory = CreateInventory(productId, quantity: 0m);
+
+        var poItem = new PurchaseOrderItem
+        {
+            Id = Guid.NewGuid(),
+            PurchaseOrderId = poId,
+            InventoryItemId = inventory.Id,
+            ItemName = "شاي",
+            Quantity = 20m,
+            ReceivedQuantity = 0m,
+            UnitCost = 3.000m,
+            TotalCost = 60.000m
+        };
+        var poItems = new List<PurchaseOrderItem> { poItem };
+
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks(
+            products: new List<Product> { product },
+            inventoryItems: new List<InventoryItem> { inventory },
+            purchaseOrder: purchaseOrder,
+            poItems: poItems);
+
+        // Act — empty batches
+        var result = await service.ReceivePurchaseOrderWithBatchesAsync(poId, userId, new List<ReceiveBatchDto>());
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        // Default batch was created with auto-generated number containing PO-002
+        unitOfWorkMock.Verify(u => u.InventoryBatches.AddAsync(
+            It.Is<InventoryBatch>(b =>
+                b.InventoryItemId == inventory.Id &&
+                b.BatchNumber.Contains("PO-002") &&
+                b.Quantity == 20m &&
+                b.UnitCost == 3.000m)), Times.Once);
+
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_PONotFound_ReturnsFailure()
+    {
+        var (service, _, _) = BuildServiceWithMocks();
+        var result = await service.ReceivePurchaseOrderWithBatchesAsync(
+            Guid.NewGuid(), Guid.NewGuid(), new List<ReceiveBatchDto>());
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("أمر الشراء غير موجود");
+    }
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_POAlreadyReceived_ReturnsFailure()
+    {
+        var poId = Guid.NewGuid();
+        var purchaseOrder = CreatePurchaseOrder(poId, "PO-001", "Received");
+        var (service, _, _) = BuildServiceWithMocks(purchaseOrder: purchaseOrder);
+        var result = await service.ReceivePurchaseOrderWithBatchesAsync(
+            poId, Guid.NewGuid(), new List<ReceiveBatchDto>());
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("أمر الشراء ليس في حالة انتظار");
+    }
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_NullBatches_ThrowsArgumentNullException()
+    {
+        var (service, _, _) = BuildServiceWithMocks();
+        var act = () => service.ReceivePurchaseOrderWithBatchesAsync(
+            Guid.NewGuid(), Guid.NewGuid(), null!);
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task ReceivePurchaseOrderWithBatchesAsync_WhenExceptionOccurs_RollsBack()
+    {
+        // Arrange — have service throw by making InventoryItems.GetByIdAsync return null
+        var poId = Guid.NewGuid();
+        var purchaseOrder = CreatePurchaseOrder(poId, "PO-001", "Pending");
+
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock.Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+            It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(CreateProduct());
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        var poRepoMock = new Mock<IRepository<PurchaseOrder>>();
+        poRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(purchaseOrder);
+        poRepoMock.Setup(r => r.UpdateAsync(It.IsAny<PurchaseOrder>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(poRepoMock.Object);
+
+        var poItemRepoMock = new Mock<IRepository<PurchaseOrderItem>>();
+        poItemRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<PurchaseOrderItem, bool>>>()))
+            .ReturnsAsync(new List<PurchaseOrderItem>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(), PurchaseOrderId = poId,
+                    InventoryItemId = Guid.NewGuid(), ItemName = "Test",
+                    Quantity = 10m, ReceivedQuantity = 0m,
+                    UnitCost = 5m, TotalCost = 50m
+                }
+            });
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(poItemRepoMock.Object);
+
+        // InventoryItems repo returns null (no matching inventory)
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((InventoryItem?)null);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(new Mock<IRepository<InventoryMovement>>().Object);
+        // ---- InventoryBatches repository ----
+        var batchRepoMock = new Mock<IRepository<InventoryBatch>>();
+        batchRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<InventoryBatch>()))
+            .Callback<InventoryBatch>(b => { if (b.Id == Guid.Empty) b.Id = Guid.NewGuid(); })
+            .Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(batchRepoMock.Object);
+
+        var service = new InventoryService(unitOfWorkMock.Object, auditServiceMock.Object);
+
+        // Act
+        var act = () => service.ReceivePurchaseOrderWithBatchesAsync(poId, Guid.NewGuid(), new List<ReceiveBatchDto>());
+
+        // Assert
+        var result = await act();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("لم يتم العثور على عنصر المخزون المطلوب");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
     }
 
     [Fact]
@@ -836,11 +1071,11 @@ public class InventoryServiceTests
         var service = new InventoryService(unitOfWorkMock.Object, auditServiceMock.Object);
 
         // Act
-        var act = () => service.ProcessPurchaseReceivedAsync(poId, Guid.NewGuid());
+        var result = await service.ProcessPurchaseReceivedAsync(poId, Guid.NewGuid());
 
-        // Assert — expects the new "inventory item not found" exception
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*لم يتم العثور على عنصر المخزون المطلوب*");
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("لم يتم العثور على عنصر المخزون المطلوب");
 
         unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
         unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);

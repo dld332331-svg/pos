@@ -198,7 +198,8 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            _errorMessage.Text = $"حدث خطأ أثناء تحميل العروض: {ex.Message}";
+            System.Diagnostics.Trace.TraceError("Load promotions failed: {0}", ex);
+            _errorMessage.Text = "حدث خطأ أثناء تحميل العروض";
             SetState(PromoState.Error);
         }
     }
@@ -268,7 +269,7 @@ public class PromotionsListForm : UserControl
 
         var toggleText = promo.IsActive ? "إيقاف" : "تفعيل";
         var toggleItem = new ToolStripMenuItem(promo.IsActive ? "⏸ إيقاف" : "▶️ تفعيل");
-        toggleItem.Click += (s, e) => TogglePromotion(promo);
+        toggleItem.Click += (s, e) => _ = TogglePromotionAsync(promo);
         menu.Items.Add(toggleItem);
 
         menu.Items.Add(new ToolStripSeparator());
@@ -404,7 +405,8 @@ public class PromotionsListForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[PromotionsListForm] SavePromotion failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء حفظ العرض", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
         dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
@@ -412,7 +414,7 @@ public class PromotionsListForm : UserControl
         dialog.ShowDialog(this.FindForm());
     }
 
-    private async void TogglePromotion(PromotionDto promo)
+    private async Task TogglePromotionAsync(PromotionDto promo)
     {
         try
         {
@@ -426,7 +428,8 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            System.Diagnostics.Trace.TraceError($"[PromotionsListForm] TogglePromotionAsync failed: {ex}");
+            RtlMessageBox.Show("حدث خطأ أثناء تحديث العرض", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -452,7 +455,8 @@ public class PromotionsListForm : UserControl
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            System.Diagnostics.Trace.TraceError($"[PromotionsListForm] DeletePromotionAsync failed: {ex}");
+            RtlMessageBox.Show("حدث خطأ أثناء حذف العرض", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

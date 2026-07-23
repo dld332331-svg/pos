@@ -54,110 +54,295 @@ public class SaleService : ISaleService
     public async Task AddItemAsync(Guid saleId, AddItemRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
-            ?? throw new InvalidOperationException("البيع غير موجود");
 
-        if (sale.Status != SaleStatus.Active)
-            throw new InvalidOperationException("لا يمكن إضافة عناصر لبيع غير نشط");
-
-        var product = await _unitOfWork.Products.GetByIdAsync(request.ProductId)
-            ?? throw new InvalidOperationException("المنتج غير موجود");
-
-        if (product.Status != ProductStatus.Active)
-            throw new InvalidOperationException("المنتج غير نشط");
-
-        // ── Unit Conversion & Display Tracking ──────────────────────────
-        // If the request specifies a unit and the product has a UnitOfMeasure,
-        // 1) convert the quantity to the product's default unit for inventory/pricing
-        // 2) track the original (display) unit for UI display and held-sale retrieval
-        decimal effectiveQuantity = request.Quantity;
-        Guid? displayUnitId = null;
-        decimal? displayQuantity = null;
-
-        if (!string.IsNullOrWhiteSpace(request.Unit) && product.UnitOfMeasureId.HasValue && _unitConversionService is not null)
+        await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            var units = await _unitConversionService.GetAllUnitsAsync();
+            var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
+                ?? throw new InvalidOperationException("البيع غير موجود");
 
-            // Find the requested unit by symbol or arabic symbol
-            var requestedUnit = units.FirstOrDefault(u =>
-                string.Equals(u.Symbol, request.Unit, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(u.ArabicSymbol, request.Unit, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(u.Name, request.Unit, StringComparison.OrdinalIgnoreCase));
+            if (sale.Status != SaleStatus.Active)
+                throw new InvalidOperationException("لا يمكن إضافة عناصر لبيع غير نشط");
 
-            if (requestedUnit is not null && requestedUnit.Id != product.UnitOfMeasureId.Value)
+            var product = await _unitOfWork.Products.GetByIdAsync(request.ProductId)
+                ?? throw new InvalidOperationException("المنتج غير موجود");
+
+            if (product.Status != ProductStatus.Active)
+                throw new InvalidOperationException("المنتج غير نشط");
+
+            // ── Unit Conversion & Display Tracking ──────────────────────────
+            // If the request specifies a unit and the product has a UnitOfMeasure,
+            // 1) convert the quantity to the product's default unit for inventory/pricing
+            // 2) track the original (display) unit for UI display and held-sale retrieval
+            decimal effectiveQuantity = request.Quantity;
+            Guid? displayUnitId = null;
+            decimal? displayQuantity = null;
+
+            if (!string.IsNullOrWhiteSpace(request.Unit) && product.UnitOfMeasureId.HasValue && _unitConversionService is not null)
             {
-                // Convert from the selected unit to the product's default unit
-                effectiveQuantity = await _unitConversionService.ConvertAsync(
-                    request.Quantity, requestedUnit.Id, product.UnitOfMeasureId.Value);
+                var units = await _unitConversionService.GetAllUnitsAsync();
 
-                // Track the display unit for UI and held-sale retrieval
-                displayUnitId = requestedUnit.Id;
-                displayQuantity = request.Quantity; // Pre-conversion value (e.g., 500 for g)
-            }
-        }
+                // Find the requested unit by symbol or arabic symbol
+                var requestedUnit = units.FirstOrDefault(u =>
+                    string.Equals(u.Symbol, request.Unit, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(u.ArabicSymbol, request.Unit, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(u.Name, request.Unit, StringComparison.OrdinalIgnoreCase));
 
-        // Check stock (in product's default unit)
-        var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == product.Id)).FirstOrDefault();
-        var availableQty = inventory?.AvailableQuantity ?? 0;
-        if (availableQty < effectiveQuantity)
-            throw new InvalidOperationException($"الكمية المتاحة غير كافية. المتاح: {availableQty}");
-
-        // Calculate line amounts (using converted quantity)
-        var baseLineAmount = MoneyPolicy.RoundToJOD(product.Price * effectiveQuantity);
-
-        // Calculate modifier additional price
-        decimal modifierExtra = 0;
-        var modifierNames = new List<string>();
-
-        if (request.Modifiers is not null && request.Modifiers.Count > 0)
-        {
-            foreach (var modSel in request.Modifiers)
-            {
-                var modifier = await _unitOfWork.Modifiers.GetByIdAsync(modSel.ModifierId);
-                if (modifier is null) continue;
-
-                decimal modUnitPrice = modifier.Price;
-
-                // Check for size override
-                if (modSel.ModifierSizeId.HasValue)
+                if (requestedUnit is not null && requestedUnit.Id != product.UnitOfMeasureId.Value)
                 {
-                    var modSize = await _unitOfWork.ModifierSizes.GetByIdAsync(modSel.ModifierSizeId.Value);
-                    if (modSize is not null)
-                        modUnitPrice += modSize.PriceAdjustment;
+                    // Convert from the selected unit to the product's default unit
+                    effectiveQuantity = await _unitConversionService.ConvertAsync(
+                        request.Quantity, requestedUnit.Id, product.UnitOfMeasureId.Value);
+
+                    // Track the display unit for UI and held-sale retrieval
+                    displayUnitId = requestedUnit.Id;
+                    displayQuantity = request.Quantity; // Pre-conversion value (e.g., 500 for g)
                 }
-
-                // AdditionalPrice is per-unit, total is calculated as unitPrice * quantity
-                modifierExtra = MoneyPolicy.RoundToJOD(modifierExtra + modUnitPrice * modSel.Quantity);
-                modifierNames.Add(modifier.Name);
             }
+
+            // Check stock (in product's default unit)
+            var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == product.Id)).FirstOrDefault();
+            var availableQty = inventory?.AvailableQuantity ?? 0;
+            if (availableQty < effectiveQuantity)
+                throw new InvalidOperationException($"الكمية المتاحة غير كافية. المتاح: {availableQty}");
+
+            // Calculate line amounts (using converted quantity)
+            var baseLineAmount = MoneyPolicy.RoundToJOD(product.Price * effectiveQuantity);
+
+            // Calculate modifier additional price
+            decimal modifierExtra = 0;
+            var modifierNames = new List<string>();
+
+            if (request.Modifiers is not null && request.Modifiers.Count > 0)
+            {
+                foreach (var modSel in request.Modifiers)
+                {
+                    var modifier = await _unitOfWork.Modifiers.GetByIdAsync(modSel.ModifierId);
+                    if (modifier is null) continue;
+
+                    decimal modUnitPrice = modifier.Price;
+
+                    // Check for size override
+                    if (modSel.ModifierSizeId.HasValue)
+                    {
+                        var modSize = await _unitOfWork.ModifierSizes.GetByIdAsync(modSel.ModifierSizeId.Value);
+                        if (modSize is not null)
+                            modUnitPrice += modSize.PriceAdjustment;
+                    }
+
+                    // AdditionalPrice is per-unit, total is calculated as unitPrice * quantity
+                    modifierExtra = MoneyPolicy.RoundToJOD(modifierExtra + modUnitPrice * modSel.Quantity);
+                    modifierNames.Add(modifier.Name);
+                }
+            }
+
+            var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra);
+            var taxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * product.TaxRate);
+            var lineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + taxAmount);
+
+            var saleItem = new SaleItem
+            {
+                SaleId = saleId,
+                ProductId = product.Id,
+                ProductName = product.ArabicName ?? string.Empty,
+                Quantity = effectiveQuantity,
+                UnitPrice = product.Price,
+                Discount = 0,
+                TaxRate = product.TaxRate,
+                TaxAmount = taxAmount,
+                LineTotal = lineTotal,
+                Cost = product.Cost,
+                Notes = request.Notes,
+                ModifierSummary = modifierNames.Count > 0 ? string.Join(", ", modifierNames) : null,
+                UnitOfMeasureId = displayUnitId,
+                DisplayQuantity = displayQuantity
+            };
+
+            // Create modifier records
+            if (request.Modifiers is not null)
+            {
+                foreach (var modSel in request.Modifiers)
+                {
+                    var modifier = await _unitOfWork.Modifiers.GetByIdAsync(modSel.ModifierId);
+                    if (modifier is null) continue;
+
+                    decimal modUnitPrice = modifier.Price;
+                    if (modSel.ModifierSizeId.HasValue)
+                    {
+                        var modSize = await _unitOfWork.ModifierSizes.GetByIdAsync(modSel.ModifierSizeId.Value);
+                        if (modSize is not null) modUnitPrice += modSize.PriceAdjustment;
+                    }
+
+                    saleItem.AddModifier(new SaleItemModifier
+                    {
+                        SaleItemId = saleItem.Id,
+                        ModifierId = modSel.ModifierId,
+                        ModifierName = modifier.Name,
+                        AdditionalPrice = modUnitPrice,
+                        Quantity = modSel.Quantity
+                    });
+                }
+            }
+
+            sale.AddItem(saleItem);
+
+            // Reserve inventory (using converted quantity)
+            if (inventory is not null)
+            {
+                inventory.ReservedQuantity += effectiveQuantity;
+                await _unitOfWork.InventoryItems.UpdateAsync(inventory);
+            }
+
+            // Recalculate sale totals
+            RecalculateSaleTotals(sale);
+
+            await _unitOfWork.Sales.UpdateAsync(sale);
+            await _unitOfWork.SaleItems.AddAsync(saleItem);
+
+            // Auto-apply eligible promotions (best matching) before committing so
+            // that all side effects remain inside the transaction.
+            await TryAutoApplyPromotionsAsync(sale);
+
+            await _unitOfWork.CommitAsync();
         }
-
-        var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra);
-        var taxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * product.TaxRate);
-        var lineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + taxAmount);
-
-        var saleItem = new SaleItem
+        catch
         {
-            SaleId = saleId,
-            ProductId = product.Id,
-            ProductName = product.ArabicName ?? string.Empty,
-            Quantity = effectiveQuantity,
-            UnitPrice = product.Price,
-            Discount = 0,
-            TaxRate = product.TaxRate,
-            TaxAmount = taxAmount,
-            LineTotal = lineTotal,
-            Cost = product.Cost,
-            Notes = request.Notes,
-            ModifierSummary = modifierNames.Count > 0 ? string.Join(", ", modifierNames) : null,
-            UnitOfMeasureId = displayUnitId,
-            DisplayQuantity = displayQuantity
-        };
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
 
-        // Create modifier records
-        if (request.Modifiers is not null)
+    public async Task RemoveItemAsync(Guid saleId, Guid itemId)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            foreach (var modSel in request.Modifiers)
+            var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
+                ?? throw new InvalidOperationException("البيع غير موجود");
+
+            if (sale.Status != SaleStatus.Active)
+                throw new InvalidOperationException("لا يمكن حذف عناصر من بيع غير نشط");
+
+            var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
+                ?? throw new InvalidOperationException("العنصر غير موجود");
+
+            // Release reserved inventory
+            var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == item.ProductId)).FirstOrDefault();
+            if (inventory is not null)
+            {
+                inventory.ReservedQuantity = Math.Max(0, inventory.ReservedQuantity - item.Quantity);
+                await _unitOfWork.InventoryItems.UpdateAsync(inventory);
+            }
+
+            sale.RemoveItem(item);
+            RecalculateSaleTotals(sale);
+
+            await _unitOfWork.SaleItems.DeleteAsync(item);
+            await _unitOfWork.Sales.UpdateAsync(sale);
+            await _unitOfWork.CommitAsync();
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task UpdateItemQuantityAsync(Guid saleId, Guid itemId, decimal newQuantity)
+    {
+        if (newQuantity <= 0)
+            throw new InvalidOperationException("الكمية يجب أن تكون أكبر من صفر");
+
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
+                ?? throw new InvalidOperationException("البيع غير موجود");
+
+            if (sale.Status != SaleStatus.Active)
+                throw new InvalidOperationException("لا يمكن تعديل بيع غير نشط");
+
+            var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
+                ?? throw new InvalidOperationException("العنصر غير موجود");
+
+            var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId)
+                ?? throw new InvalidOperationException("المنتج غير موجود");
+
+            var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == product.Id)).FirstOrDefault();
+            var availableQty = inventory?.AvailableQuantity ?? 0;
+
+            // Account for the quantity being released from the old reservation
+            var qtyDiff = newQuantity - item.Quantity;
+            if (qtyDiff > 0 && availableQty < qtyDiff)
+                throw new InvalidOperationException($"الكمية المتاحة غير كافية. المتاح: {availableQty}");
+
+            // Update reservation
+            if (inventory is not null)
+            {
+                inventory.ReservedQuantity += qtyDiff;
+                await _unitOfWork.InventoryItems.UpdateAsync(inventory);
+            }
+
+            // Recalculate line item
+            item.Quantity = newQuantity;
+            var baseLineAmount = MoneyPolicy.RoundToJOD(item.UnitPrice * newQuantity);
+
+            // Recalculate modifier extras (AdditionalPrice is per-unit, so total = sum of unitPrice * quantity)
+            decimal modifierExtra = 0;
+            if (item.Modifiers.Count > 0)
+            {
+                modifierExtra = MoneyPolicy.RoundToJOD(item.Modifiers.Sum(m => m.AdditionalPrice * m.Quantity));
+            }
+
+            var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra - item.Discount);
+            item.TaxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * item.TaxRate);
+            item.LineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + item.TaxAmount);
+            item.MarkAsModified();
+
+            RecalculateSaleTotals(sale);
+
+            await _unitOfWork.SaleItems.UpdateAsync(item);
+            await _unitOfWork.Sales.UpdateAsync(sale);
+            await _unitOfWork.CommitAsync();
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<SaleItemDto> ModifyItemAsync(Guid saleId, Guid itemId, ModifierSelectionDto[] modifiers)
+    {
+        ArgumentNullException.ThrowIfNull(modifiers);
+
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
+                ?? throw new InvalidOperationException("البيع غير موجود");
+
+            if (sale.Status != SaleStatus.Active)
+                throw new InvalidOperationException("لا يمكن تعديل بيع غير نشط");
+
+            var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
+                ?? throw new InvalidOperationException("العنصر غير موجود");
+
+            var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId)
+                ?? throw new InvalidOperationException("المنتج غير موجود");
+
+            // Remove old modifiers from DB
+            var oldModifiers = (await _unitOfWork.SaleItemModifiers.FindAsync(m => m.SaleItemId == itemId)).ToList();
+            foreach (var old in oldModifiers)
+            {
+                await _unitOfWork.SaleItemModifiers.DeleteAsync(old);
+            }
+
+            // Calculate new modifier extras
+            decimal modifierExtra = 0;
+            var modifierNames = new List<string>();
+
+            foreach (var modSel in modifiers)
             {
                 var modifier = await _unitOfWork.Modifiers.GetByIdAsync(modSel.ModifierId);
                 if (modifier is null) continue;
@@ -169,236 +354,101 @@ public class SaleService : ISaleService
                     if (modSize is not null) modUnitPrice += modSize.PriceAdjustment;
                 }
 
-                saleItem.AddModifier(new SaleItemModifier
+                // AdditionalPrice is per-unit, total modifier cost = unitPrice * quantity
+                modifierExtra = MoneyPolicy.RoundToJOD(modifierExtra + modUnitPrice * modSel.Quantity);
+                modifierNames.Add(modifier.Name);
+
+                var sim = new SaleItemModifier
                 {
-                    SaleItemId = saleItem.Id,
+                    SaleItemId = itemId,
                     ModifierId = modSel.ModifierId,
                     ModifierName = modifier.Name,
                     AdditionalPrice = modUnitPrice,
                     Quantity = modSel.Quantity
-                });
-            }
-        }
-
-        sale.AddItem(saleItem);
-
-        // Reserve inventory (using converted quantity)
-        if (inventory is not null)
-        {
-            inventory.ReservedQuantity += effectiveQuantity;
-            await _unitOfWork.InventoryItems.UpdateAsync(inventory);
-        }
-
-        // Recalculate sale totals
-        RecalculateSaleTotals(sale);
-
-        await _unitOfWork.Sales.UpdateAsync(sale);
-        await _unitOfWork.SaleItems.AddAsync(saleItem);
-        await _unitOfWork.SaveChangesAsync();
-
-        // Auto-apply eligible promotions (best matching)
-        await TryAutoApplyPromotionsAsync(sale);
-    }
-
-    public async Task RemoveItemAsync(Guid saleId, Guid itemId)
-    {
-        var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
-            ?? throw new InvalidOperationException("البيع غير موجود");
-
-        if (sale.Status != SaleStatus.Active)
-            throw new InvalidOperationException("لا يمكن حذف عناصر من بيع غير نشط");
-
-        var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
-            ?? throw new InvalidOperationException("العنصر غير موجود");
-
-        // Release reserved inventory
-        var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == item.ProductId)).FirstOrDefault();
-        if (inventory is not null)
-        {
-            inventory.ReservedQuantity = Math.Max(0, inventory.ReservedQuantity - item.Quantity);
-            await _unitOfWork.InventoryItems.UpdateAsync(inventory);
-        }
-
-        sale.RemoveItem(item);
-        RecalculateSaleTotals(sale);
-
-        await _unitOfWork.SaleItems.DeleteAsync(item);
-        await _unitOfWork.Sales.UpdateAsync(sale);
-        await _unitOfWork.SaveChangesAsync();
-    }
-
-    public async Task UpdateItemQuantityAsync(Guid saleId, Guid itemId, decimal newQuantity)
-    {
-        if (newQuantity <= 0)
-            throw new InvalidOperationException("الكمية يجب أن تكون أكبر من صفر");
-
-        var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
-            ?? throw new InvalidOperationException("البيع غير موجود");
-
-        if (sale.Status != SaleStatus.Active)
-            throw new InvalidOperationException("لا يمكن تعديل بيع غير نشط");
-
-        var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
-            ?? throw new InvalidOperationException("العنصر غير موجود");
-
-        var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId)
-            ?? throw new InvalidOperationException("المنتج غير موجود");
-
-        var inventory = (await _unitOfWork.InventoryItems.FindAsync(i => i.ProductId == product.Id)).FirstOrDefault();
-        var availableQty = inventory?.AvailableQuantity ?? 0;
-
-        // Account for the quantity being released from the old reservation
-        var qtyDiff = newQuantity - item.Quantity;
-        if (qtyDiff > 0 && availableQty < qtyDiff)
-            throw new InvalidOperationException($"الكمية المتاحة غير كافية. المتاح: {availableQty}");
-
-        // Update reservation
-        if (inventory is not null)
-        {
-            inventory.ReservedQuantity += qtyDiff;
-            await _unitOfWork.InventoryItems.UpdateAsync(inventory);
-        }
-
-        // Recalculate line item
-        item.Quantity = newQuantity;
-        var baseLineAmount = MoneyPolicy.RoundToJOD(item.UnitPrice * newQuantity);
-
-        // Recalculate modifier extras (AdditionalPrice is per-unit, so total = sum of unitPrice * quantity)
-        decimal modifierExtra = 0;
-        if (item.Modifiers.Count > 0)
-        {
-            modifierExtra = MoneyPolicy.RoundToJOD(item.Modifiers.Sum(m => m.AdditionalPrice * m.Quantity));
-        }
-
-        var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra - item.Discount);
-        item.TaxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * item.TaxRate);
-        item.LineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + item.TaxAmount);
-        item.MarkAsModified();
-
-        RecalculateSaleTotals(sale);
-
-        await _unitOfWork.SaleItems.UpdateAsync(item);
-        await _unitOfWork.Sales.UpdateAsync(sale);
-        await _unitOfWork.SaveChangesAsync();
-    }
-
-    public async Task<SaleItemDto> ModifyItemAsync(Guid saleId, Guid itemId, ModifierSelectionDto[] modifiers)
-    {
-        ArgumentNullException.ThrowIfNull(modifiers);
-        var sale = await _unitOfWork.Sales.GetByIdAsync(saleId)
-            ?? throw new InvalidOperationException("البيع غير موجود");
-
-        if (sale.Status != SaleStatus.Active)
-            throw new InvalidOperationException("لا يمكن تعديل بيع غير نشط");
-
-        var item = (await _unitOfWork.SaleItems.FindAsync(i => i.Id == itemId)).FirstOrDefault()
-            ?? throw new InvalidOperationException("العنصر غير موجود");
-
-        var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId)
-            ?? throw new InvalidOperationException("المنتج غير موجود");
-
-        // Remove old modifiers from DB
-        var oldModifiers = (await _unitOfWork.SaleItemModifiers.FindAsync(m => m.SaleItemId == itemId)).ToList();
-        foreach (var old in oldModifiers)
-        {
-            await _unitOfWork.SaleItemModifiers.DeleteAsync(old);
-        }
-
-        // Calculate new modifier extras
-        decimal modifierExtra = 0;
-        var modifierNames = new List<string>();
-
-        foreach (var modSel in modifiers)
-        {
-            var modifier = await _unitOfWork.Modifiers.GetByIdAsync(modSel.ModifierId);
-            if (modifier is null) continue;
-
-            decimal modUnitPrice = modifier.Price;
-            if (modSel.ModifierSizeId.HasValue)
-            {
-                var modSize = await _unitOfWork.ModifierSizes.GetByIdAsync(modSel.ModifierSizeId.Value);
-                if (modSize is not null) modUnitPrice += modSize.PriceAdjustment;
+                };
+                await _unitOfWork.SaleItemModifiers.AddAsync(sim);
+                item.AddModifier(sim);
             }
 
-            // AdditionalPrice is per-unit, total modifier cost = unitPrice * quantity
-            modifierExtra = MoneyPolicy.RoundToJOD(modifierExtra + modUnitPrice * modSel.Quantity);
-            modifierNames.Add(modifier.Name);
+            // Recalculate line totals
+            var baseLineAmount = MoneyPolicy.RoundToJOD(item.UnitPrice * item.Quantity);
+            var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra - item.Discount);
+            item.TaxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * item.TaxRate);
+            item.LineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + item.TaxAmount);
+            item.ModifierSummary = modifierNames.Count > 0 ? string.Join(", ", modifierNames) : null;
+            item.MarkAsModified();
 
-            var sim = new SaleItemModifier
-            {
-                SaleItemId = itemId,
-                ModifierId = modSel.ModifierId,
-                ModifierName = modifier.Name,
-                AdditionalPrice = modUnitPrice,
-                Quantity = modSel.Quantity
-            };
-            await _unitOfWork.SaleItemModifiers.AddAsync(sim);
-            item.AddModifier(sim);
+            RecalculateSaleTotals(sale);
+
+            await _unitOfWork.Sales.UpdateAsync(sale);
+            await _unitOfWork.CommitAsync();
+
+            return MapSaleItemToDto(item);
         }
-
-        // Recalculate line totals
-        var baseLineAmount = MoneyPolicy.RoundToJOD(item.UnitPrice * item.Quantity);
-        var lineTotalBeforeTax = MoneyPolicy.RoundToJOD(baseLineAmount + modifierExtra - item.Discount);
-        item.TaxAmount = MoneyPolicy.RoundToJOD(lineTotalBeforeTax * item.TaxRate);
-        item.LineTotal = MoneyPolicy.RoundToJOD(lineTotalBeforeTax + item.TaxAmount);
-        item.ModifierSummary = modifierNames.Count > 0 ? string.Join(", ", modifierNames) : null;
-        item.MarkAsModified();
-
-        RecalculateSaleTotals(sale);
-
-        await _unitOfWork.Sales.UpdateAsync(sale);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapSaleItemToDto(item);
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task ApplyDiscountAsync(ApplyDiscountRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var sale = await _unitOfWork.Sales.GetByIdAsync(request.SaleId)
-            ?? throw new InvalidOperationException("البيع غير موجود");
 
-        if (sale.Status != SaleStatus.Active)
-            throw new InvalidOperationException("لا يمكن تطبيق خصم على بيع غير نشط");
-
-        var errors = SaleValidator.ValidateDiscount(request.DiscountAmount, sale.SubTotal);
-        if (errors.Count > 0)
-            throw new InvalidOperationException(string.Join(", ", errors));
-
-        sale.DiscountAmount = MoneyPolicy.RoundToJOD(request.DiscountAmount);
-
-        // Distribute the invoice-level discount proportionally across all line items
-        // for record-keeping in SaleItem.DiscountAmount (reporting field)
-        // The actual TotalAmount calculation remains: SubTotal + TaxAmount - DiscountAmount
-        if (sale.SubTotal > 0 && request.DiscountAmount > 0)
+        await _unitOfWork.BeginTransactionAsync();
+        try
         {
-            var items = sale.SaleItems;
-            var discountRatio = MoneyPolicy.RoundToJOD(request.DiscountAmount / sale.SubTotal);
-            decimal distributedDiscount = 0;
+            var sale = await _unitOfWork.Sales.GetByIdAsync(request.SaleId)
+                ?? throw new InvalidOperationException("البيع غير موجود");
 
-            foreach (var item in items)
+            if (sale.Status != SaleStatus.Active)
+                throw new InvalidOperationException("لا يمكن تطبيق خصم على بيع غير نشط");
+
+            var errors = SaleValidator.ValidateDiscount(request.DiscountAmount, sale.SubTotal);
+            if (errors.Count > 0)
+                throw new InvalidOperationException(string.Join(", ", errors));
+
+            sale.DiscountAmount = MoneyPolicy.RoundToJOD(request.DiscountAmount);
+
+            // Distribute the invoice-level discount proportionally across all line items
+            // for record-keeping in SaleItem.DiscountAmount (reporting field)
+            // The actual TotalAmount calculation remains: SubTotal + TaxAmount - DiscountAmount
+            if (sale.SubTotal > 0 && request.DiscountAmount > 0)
             {
-                var itemBeforeModifiers = MoneyPolicy.RoundToJOD(item.UnitPrice * item.Quantity);
-                var itemDiscount = MoneyPolicy.RoundToJOD(itemBeforeModifiers * discountRatio);
-                item.DiscountAmount = MoneyPolicy.RoundToJOD(item.DiscountAmount + itemDiscount);
-                distributedDiscount = MoneyPolicy.RoundToJOD(distributedDiscount + itemDiscount);
+                var items = sale.SaleItems;
+                var discountRatio = MoneyPolicy.RoundToJOD(request.DiscountAmount / sale.SubTotal);
+                decimal distributedDiscount = 0;
+
+                foreach (var item in items)
+                {
+                    var itemBeforeModifiers = MoneyPolicy.RoundToJOD(item.UnitPrice * item.Quantity);
+                    var itemDiscount = MoneyPolicy.RoundToJOD(itemBeforeModifiers * discountRatio);
+                    item.DiscountAmount = MoneyPolicy.RoundToJOD(item.DiscountAmount + itemDiscount);
+                    distributedDiscount = MoneyPolicy.RoundToJOD(distributedDiscount + itemDiscount);
+                }
+
+                // Adjust rounding difference to ensure total matches
+                var roundingDiff = MoneyPolicy.RoundToJOD(request.DiscountAmount - distributedDiscount);
+                if (roundingDiff != 0 && items.Count > 0)
+                {
+                    items.Last().DiscountAmount = MoneyPolicy.RoundToJOD(items.Last().DiscountAmount + roundingDiff);
+                }
             }
 
-            // Adjust rounding difference to ensure total matches
-            var roundingDiff = MoneyPolicy.RoundToJOD(request.DiscountAmount - distributedDiscount);
-            if (roundingDiff != 0 && items.Count > 0)
-            {
-                items.Last().DiscountAmount = MoneyPolicy.RoundToJOD(items.Last().DiscountAmount + roundingDiff);
-            }
+            RecalculateSaleTotals(sale);
+
+            await _unitOfWork.Sales.UpdateAsync(sale);
+            await _auditService.LogAsync(sale.UserId, AuditActionType.DiscountApplied, "Sale", sale.Id,
+                null, $"Discount={request.DiscountAmount}", request.Reason);
+
+            await _unitOfWork.CommitAsync();
         }
-
-        RecalculateSaleTotals(sale);
-
-        await _unitOfWork.Sales.UpdateAsync(sale);
-        await _unitOfWork.SaveChangesAsync();
-
-        await _auditService.LogAsync(sale.UserId, AuditActionType.DiscountApplied, "Sale", sale.Id,
-            null, $"Discount={request.DiscountAmount}", request.Reason);
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request)
@@ -547,7 +597,6 @@ public class SaleService : ISaleService
             var heldSales = (await _unitOfWork.HeldSales.FindAsync(h => h.SerializedData.Contains(sale.Id.ToString()))).ToList();
 
             await _unitOfWork.Sales.UpdateAsync(sale);
-            await _unitOfWork.SaveChangesAsync();
 
             var changeAmount = MoneyPolicy.RoundToJOD(request.Amount - sale.TotalAmount);
 
@@ -660,7 +709,10 @@ public class SaleService : ISaleService
             if (data.RootElement.TryGetProperty("TotalAmount", out var totalEl))
                 totalAmount = totalEl.GetDecimal();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning($"[SaleService] Failed to parse HeldSale serialized data for {heldSale.Id}: {ex.Message}");
+        }
 
         var sale = await _unitOfWork.Sales.GetByIdAsync(saleId);
         if (sale is not null)
@@ -695,7 +747,10 @@ public class SaleService : ISaleService
                 if (data.RootElement.TryGetProperty("TotalAmount", out var totalEl))
                     totalAmount = totalEl.GetDecimal();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceWarning($"[SaleService] Failed to parse HeldSale serialized data for {hs.Id}: {ex.Message}");
+            }
 
             result.Add(new HeldSaleDto(hs.Id, hs.CreatedAt, hs.HoldReason ?? string.Empty, totalAmount));
         }
@@ -730,7 +785,6 @@ public class SaleService : ISaleService
 
             sale.Status = SaleStatus.Cancelled;
             await _unitOfWork.Sales.UpdateAsync(sale);
-            await _unitOfWork.SaveChangesAsync();
 
             await _auditService.LogAsync(sale.UserId, AuditActionType.CancellationProcessed, "Sale", sale.Id,
                 $"Status={SaleStatus.Active}", $"Status={SaleStatus.Cancelled}", reason);
@@ -858,7 +912,6 @@ public class SaleService : ISaleService
             await _unitOfWork.Sales.UpdateAsync(originalSale);
 
             await _unitOfWork.Returns.AddAsync(returnEntity);
-            await _unitOfWork.SaveChangesAsync();
 
             await _auditService.LogAsync(originalSale.UserId, AuditActionType.ReturnProcessed, "Return", returnEntity.Id,
                 null, $"Amount={totalReturnAmount}", reason);
@@ -961,6 +1014,28 @@ public class SaleService : ISaleService
             Unit: unitName,
             UnitOfMeasureId: item.UnitOfMeasureId,
             UnitName: unitName);
+    }
+
+    public async Task<SaleSummaryDto?> GetSaleByInvoiceNumberAsync(string invoiceNumber)
+    {
+        if (string.IsNullOrWhiteSpace(invoiceNumber))
+            return null;
+
+        var sales = await _unitOfWork.Sales.FindAsync(s =>
+            s.InvoiceNumber != null && s.InvoiceNumber.Contains(invoiceNumber));
+        var sale = sales.FirstOrDefault();
+        if (sale is null)
+            return null;
+
+        return new SaleSummaryDto(
+            sale.Id,
+            sale.InvoiceNumber ?? string.Empty,
+            sale.SubTotal,
+            sale.TaxAmount,
+            sale.DiscountAmount,
+            sale.TotalAmount,
+            sale.Status.ToString(),
+            sale.CreatedAt);
     }
 
     private async Task TryAutoApplyPromotionsAsync(Sale sale)

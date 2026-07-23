@@ -1,5 +1,7 @@
 namespace POS.Desktop.CustomControls;
+using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using POS.Desktop.Themes;
@@ -19,18 +21,22 @@ public enum TextBoxValidationMode
 /// <summary>
 /// Full container-based RTL TextBox with label, placeholder, error icon,
 /// MaxLength counter, format validation, password mode, and DesignTokens styling.
+/// Modern design: rounded border, focus ring, Font Awesome icons, smooth transitions.
 /// </summary>
 public class RtlTextBox : UserControl
 {
     #region Private Fields
 
-    private Label _labelControl;
-    private Label _requiredIndicator;
-    private Panel _borderPanel;
-    private TextBox _textBox;
-    private PictureBox _errorIcon;
-    private Label _charCounterLabel;
-    private Button _passwordToggleBtn;
+    private Label _labelControl = null!;
+    private Label _requiredIndicator = null!;
+    private Panel _borderPanel = null!;
+    private Panel _innerPanel = null!;
+    private TextBox _textBox = null!;
+    private PictureBox _errorIcon = null!;
+    private Label _charCounterLabel = null!;
+    private Label _errorMessageLabel = null!;
+    private Button _passwordToggleBtn = null!;
+    private Label? _prefixIconLabel;
     private readonly ErrorProvider _errorProvider;
     private readonly ToolTip _toolTip;
     private string _labelText;
@@ -44,6 +50,8 @@ public class RtlTextBox : UserControl
     private bool _autoValidate;
     private bool _showingPlaceholder;
     private bool _suppressTextChanged;
+    private int _cornerRadius = DesignTokens.Radius.Md;
+    private string? _prefixIcon;
 
     #endregion
 
@@ -154,6 +162,7 @@ public class RtlTextBox : UserControl
             _textBox.MaxLength = value;
             _charCounterLabel.Visible = value > 0 && value < int.MaxValue;
             UpdateCharCounter();
+            UpdateLayout();
         }
     }
 
@@ -178,6 +187,10 @@ public class RtlTextBox : UserControl
             _textBox.PasswordChar = value;
             _isPasswordMode = value != '\0';
             _passwordToggleBtn.Visible = _isPasswordMode;
+            if (_isPasswordMode)
+            {
+                _passwordToggleBtn.Text = value == '\0' ? FontAwesomeIcons.EyeSlash : FontAwesomeIcons.Eye;
+            }
             UpdateLayout();
         }
     }
@@ -189,10 +202,13 @@ public class RtlTextBox : UserControl
         {
             _textBox.Enabled = value;
             _textBox.BackColor = value ? Color.White : DesignTokens.Colors.Background;
-            _textBox.ForeColor = value ? _normalForeColor : DesignTokens.Colors.Disabled;
+            _textBox.ForeColor = value ? _normalForeColor : DesignTokens.Colors.DisabledText;
+            _borderPanel.BackColor = value ? (_hasError ? DesignTokens.Colors.Error : _borderColor) : DesignTokens.Colors.BorderLight;
             _labelControl.Enabled = value;
             _errorIcon.Visible = false;
+            _errorMessageLabel.Visible = false;
             if (_isPasswordMode) _passwordToggleBtn.Enabled = value;
+            Invalidate();
         }
     }
 
@@ -223,6 +239,46 @@ public class RtlTextBox : UserControl
     {
         get => _textBox.ReadOnly;
         set => _textBox.ReadOnly = value;
+    }
+
+    public string? PrefixIcon
+    {
+        get => _prefixIcon;
+        set
+        {
+            _prefixIcon = value;
+            if (!string.IsNullOrEmpty(value))
+            {
+                if (_prefixIconLabel == null)
+                {
+                    _prefixIconLabel = new Label
+                    {
+                        Font = Icons.FontLoader.GetFontAwesomeSolid(14f),
+                        ForeColor = DesignTokens.Colors.TextHint,
+                        TextAlign = ContentAlignment.MiddleCenter,
+                        BackColor = Color.Transparent,
+                        AutoSize = false,
+                        Width = 28,
+                        Dock = DockStyle.Right
+                    };
+                }
+                _prefixIconLabel.Text = value;
+                if (!_innerPanel.Controls.Contains(_prefixIconLabel))
+                    _innerPanel.Controls.Add(_prefixIconLabel);
+            }
+            else if (_prefixIconLabel != null)
+            {
+                _innerPanel.Controls.Remove(_prefixIconLabel);
+            }
+            _textBox.BringToFront();
+            UpdateLayout();
+        }
+    }
+
+    public int CornerRadius
+    {
+        get => _cornerRadius;
+        set { _cornerRadius = Math.Max(0, Math.Min(30, value)); UpdateRoundedRegion(); Invalidate(); }
     }
 
     #endregion
@@ -308,28 +364,27 @@ public class RtlTextBox : UserControl
             Visible = false
         };
 
-        // Border panel
+        // Border panel (outer border)
         _borderPanel = new Panel
         {
             BackColor = DesignTokens.Colors.Border,
-            Height = DesignTokens.ControlHeight.Standard + 2
+            Height = DesignTokens.ControlHeight.Standard + 2,
+            Padding = new Padding(1)
         };
+        _borderPanel.Paint += BorderPanel_Paint;
 
-        // Error icon (red circle with !)
+        // Inner panel (white background with rounded corners)
+        _innerPanel = new Panel
+        { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
+
+        // Error icon (Font Awesome circle-exclamation)
         _errorIcon = new PictureBox
         {
             Size = new Size(16, 16),
             Visible = false,
             BackColor = Color.Transparent
         };
-        using (var bmp = new Bitmap(16, 16))
-        using (var g = Graphics.FromImage(bmp))
-        {
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.FillEllipse(Brushes.Red, 0, 0, 16, 16);
-            g.DrawString("!", new Font("Arial", 10f, FontStyle.Bold), Brushes.White, 4, -1);
-            _errorIcon.Image = (Image)bmp.Clone();
-        }
+        DrawErrorIcon();
 
         // Text box
         _textBox = new TextBox
@@ -361,36 +416,85 @@ public class RtlTextBox : UserControl
             Visible = false
         };
 
+        // Error message label
+        _errorMessageLabel = new Label
+        {
+            Font = DesignTokens.Typography.Caption,
+            ForeColor = DesignTokens.Colors.Error,
+            RightToLeft = RightToLeft.Yes,
+            TextAlign = ContentAlignment.MiddleRight,
+            AutoSize = true,
+            Visible = false
+        };
+
         // Password toggle button
         _passwordToggleBtn = new Button
         {
-            Text = "👁",
-            Font = new Font("Segoe UI Emoji", 10f),
+            Text = FontAwesomeIcons.Eye,
+            Font = Icons.FontLoader.GetFontAwesomeSolid(12f),
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(30, 0),
+            Size = new Size(32, 0),
             Visible = false,
             Dock = DockStyle.Left,
             BackColor = Color.Transparent,
-            ForeColor = DesignTokens.Colors.TextSecondary,
-            Cursor = Cursors.Hand
+            ForeColor = DesignTokens.Colors.TextHint,
+            Cursor = Cursors.Hand,
+            TabStop = false
         };
         _passwordToggleBtn.FlatAppearance.BorderSize = 0;
         _passwordToggleBtn.Click += OnPasswordToggle;
 
-        // Assemble inner border
-        var innerPanel = new Panel { Dock = DockStyle.Fill };
-        innerPanel.Controls.Add(_textBox);
-        if (_isPasswordMode) innerPanel.Controls.Add(_passwordToggleBtn);
-
-        _borderPanel.Controls.Add(innerPanel);
+        // Assemble inner panel
+        _innerPanel.Controls.Add(_textBox);
+        _borderPanel.Controls.Add(_innerPanel);
 
         Controls.Add(_borderPanel);
         Controls.Add(_errorIcon);
+        Controls.Add(_errorMessageLabel);
         Controls.Add(_charCounterLabel);
         Controls.Add(_requiredIndicator);
         Controls.Add(_labelControl);
 
         Height = DesignTokens.ControlHeight.Standard + 2;
+    }
+
+    private void DrawErrorIcon()
+    {
+        var bmp = new Bitmap(16, 16);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Color.Transparent);
+            using var brush = new SolidBrush(DesignTokens.Colors.Error);
+            g.FillEllipse(brush, 0, 0, 15, 15);
+            using var font = new Font("Arial", 9f, FontStyle.Bold);
+            var size = g.MeasureString("!", font);
+            g.DrawString("!", font, Brushes.White, (16 - size.Width) / 2, -1);
+        }
+        _errorIcon.Image?.Dispose();
+        _errorIcon.Image = bmp;
+    }
+
+    private void BorderPanel_Paint(object? sender, PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = DesignTokens.CreateRoundedRect(_borderPanel.ClientRectangle, _cornerRadius);
+        _borderPanel.Region = new Region(path);
+    }
+
+    private void UpdateRoundedRegion()
+    {
+        if (_borderPanel == null) return;
+        using var outerPath = DesignTokens.CreateRoundedRect(_borderPanel.ClientRectangle, _cornerRadius);
+        _borderPanel.Region = new Region(outerPath);
+
+        if (_innerPanel != null)
+        {
+            var innerRect = new Rectangle(0, 0, _innerPanel.Width, _innerPanel.Height);
+            using var innerPath = DesignTokens.CreateRoundedRect(innerRect, Math.Max(0, _cornerRadius - 1));
+            _innerPanel.Region = new Region(innerPath);
+        }
     }
 
     #endregion
@@ -414,6 +518,7 @@ public class RtlTextBox : UserControl
             _borderPanel.Location = new Point(0, _labelControl.PreferredHeight + spacing);
             _borderPanel.Width = Width;
             Height = _labelControl.PreferredHeight + spacing + _borderPanel.Height
+                    + (_errorMessageLabel.Visible ? _errorMessageLabel.PreferredHeight + 2 : 0)
                     + (_charCounterLabel.Visible ? _charCounterLabel.PreferredHeight + 2 : 0);
         }
         else
@@ -421,18 +526,20 @@ public class RtlTextBox : UserControl
             _borderPanel.Location = new Point(0, 0);
             _borderPanel.Width = Width;
             Height = _borderPanel.Height
+                    + (_errorMessageLabel.Visible ? _errorMessageLabel.PreferredHeight + 2 : 0)
                     + (_charCounterLabel.Visible ? _charCounterLabel.PreferredHeight + 2 : 0);
         }
 
-        // Position error icon
-        _errorIcon.Location = new Point(Width - 18, _borderPanel.Bottom + 1);
+        // Position error icon and message
+        _errorIcon.Location = new Point(Width - 18, _borderPanel.Bottom + 3);
+        _errorMessageLabel.Location = new Point(0, _borderPanel.Bottom + 2);
+        _errorMessageLabel.Width = Width - 22;
 
         // Position char counter
-        if (_charCounterLabel.Visible)
-        {
-            _charCounterLabel.Location = new Point(0, _borderPanel.Bottom + 1);
-            _charCounterLabel.Width = Width - 20;
-        }
+        _charCounterLabel.Location = new Point(0, _errorMessageLabel.Visible ? _errorMessageLabel.Bottom + 1 : _borderPanel.Bottom + 2);
+        _charCounterLabel.Width = Width - 20;
+
+        UpdateRoundedRegion();
     }
 
     protected override void OnResize(EventArgs e)
@@ -452,7 +559,7 @@ public class RtlTextBox : UserControl
         _showingPlaceholder = true;
         _suppressTextChanged = true;
         _textBox.Text = _placeholderText;
-        _textBox.ForeColor = DesignTokens.Colors.TextSecondary;
+        _textBox.ForeColor = DesignTokens.Colors.TextHint;
         _suppressTextChanged = false;
     }
 
@@ -479,7 +586,7 @@ public class RtlTextBox : UserControl
     {
         HidePlaceholder();
         if (!_hasError)
-            _borderPanel.BackColor = DesignTokens.Colors.Primary;
+            _borderPanel.BackColor = DesignTokens.Colors.BorderFocus;
     }
 
     private void OnTextBoxLeave(object? sender, EventArgs e)
@@ -591,12 +698,12 @@ public class RtlTextBox : UserControl
         if (_textBox.PasswordChar == '\0')
         {
             _textBox.PasswordChar = '●';
-            _passwordToggleBtn.Text = "👁";
+            _passwordToggleBtn.Text = FontAwesomeIcons.Eye;
         }
         else
         {
             _textBox.PasswordChar = '\0';
-            _passwordToggleBtn.Text = "🔒";
+            _passwordToggleBtn.Text = FontAwesomeIcons.EyeSlash;
         }
     }
 
@@ -668,7 +775,10 @@ public class RtlTextBox : UserControl
         _hasError = true;
         _errorProvider.SetError(_textBox, message);
         _borderPanel.BackColor = DesignTokens.Colors.Error;
+        _errorMessageLabel.Text = message;
+        _errorMessageLabel.Visible = true;
         _errorIcon.Visible = true;
+        UpdateLayout();
     }
 
     public void ClearError()
@@ -676,7 +786,9 @@ public class RtlTextBox : UserControl
         _hasError = false;
         _errorProvider.Clear();
         _borderPanel.BackColor = _borderColor;
+        _errorMessageLabel.Visible = false;
         _errorIcon.Visible = false;
+        UpdateLayout();
     }
 
     #endregion

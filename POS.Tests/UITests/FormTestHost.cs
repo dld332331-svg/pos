@@ -178,13 +178,27 @@ public sealed class FormTestHost<TForm> : IDisposable where TForm : Control
         });
     }
 
-    /// <summary>Sets Text on a TextBox field by name.</summary>
+    /// <summary>Sets Text on a TextBox or RtlTextBox field by name.</summary>
     public void SetTextBox(string fieldName, string text)
     {
         InvokeOnUI(() =>
         {
-            var tb = GetField<TextBox>(fieldName);
-            tb.Text = text;
+            var field = typeof(TForm).GetField(fieldName,
+                BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public)
+                ?? throw new ArgumentException($"Field '{fieldName}' not found.");
+            var value = field.GetValue(_control)
+                ?? throw new InvalidOperationException($"Field '{fieldName}' is null.");
+            switch (value)
+            {
+                case TextBox tb:
+                    tb.Text = text;
+                    break;
+                case POS.Desktop.CustomControls.RtlTextBox rtb:
+                    rtb.Text = text;
+                    break;
+                default:
+                    throw new InvalidOperationException($"Field '{fieldName}' is not a text input control.");
+            }
         });
     }
 
@@ -202,6 +216,7 @@ public sealed class FormTestHost<TForm> : IDisposable where TForm : Control
                 Label lbl => lbl.Text,
                 Button btn => btn.Text,
                 TextBox tb => tb.Text,
+                POS.Desktop.CustomControls.RtlTextBox rtb => rtb.Text,
                 _ => value?.ToString() ?? ""
             };
         });

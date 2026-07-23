@@ -24,7 +24,6 @@ public class ProductForm : Form
     private readonly ProductDto? _existingProduct;
     private readonly List<CategoryDto> _categories = new();
     private readonly List<SupplierDto> _suppliers = new();
-    private string? _imagePath;
 
     private enum ProductFormState { Loading, Loaded, Error, PermissionDenied }
     private ProductFormState _currentState = ProductFormState.Loading;
@@ -441,7 +440,6 @@ public class ProductForm : Form
 
         if (dialog.ShowDialog() == DialogResult.OK)
         {
-            _imagePath = dialog.FileName;
             _imagePreviewLabel.Text = "✅";
             _imagePreviewLabel.ForeColor = DesignTokens.SuccessColor;
         }
@@ -523,7 +521,8 @@ public class ProductForm : Form
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"خطأ في تحميل الوصفة: {ex.Message}", "خطأ",
+            System.Diagnostics.Trace.TraceError($"[ProductForm] RecipeButton_Click failed: {ex}");
+            RtlMessageBox.Show("حدث خطأ أثناء تحميل الوصفة", "خطأ",
                 MessageBoxButtons.OK, MessageBoxIcon.Error,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
@@ -643,7 +642,8 @@ public class ProductForm : Form
         }
         catch (Exception ex)
         {
-            RtlMessageBox.Show($"خطأ في الحفظ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error,
+            System.Diagnostics.Trace.TraceError($"[ProductForm] Save failed: {ex}");
+            RtlMessageBox.Show("حدث خطأ أثناء حفظ المنتج", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error,
                 MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
         }
         finally

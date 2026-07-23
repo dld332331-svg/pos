@@ -16,7 +16,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<POSDbConte
 
         var connectionString = args.Length > 0
             ? args[0]
-            : @"Server=(localdb)\MSSQLLocalDB;Database=POS_Dev;Trusted_Connection=True;TrustServerCertificate=True;";
+            : @"Server=localhost\SQLEXPRESS;Database=POS_DB;Trusted_Connection=True;TrustServerCertificate=True;";
 
         optionsBuilder.UseSqlServer(connectionString);
 

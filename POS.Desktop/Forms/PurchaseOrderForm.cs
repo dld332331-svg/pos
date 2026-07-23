@@ -422,7 +422,8 @@ public class PurchaseOrderForm : UserControl
         }
         catch (Exception ex)
         {
-            _errorMessage.Text = $"حدث خطأ أثناء تحميل أوامر الشراء: {ex.Message}";
+            System.Diagnostics.Trace.TraceError($"[PurchaseOrderForm] LoadDataAsync failed: {ex}");
+            _errorMessage.Text = "حدث خطأ أثناء تحميل أوامر الشراء";
             SetState(FormState.Error);
         }
     }
@@ -539,7 +540,7 @@ private void PopulateSupplierFilter()
 
         var cancelItem = new ToolStripMenuItem("❌ إلغاء الأمر");
         cancelItem.Enabled = order.Status == "Pending" || order.Status == "PartiallyReceived";
-        cancelItem.Click += (s, e) => CancelOrder(order);
+        cancelItem.Click += (s, e) => _ = CancelOrderAsync(order);
         menu.Items.Add(cancelItem);
 
         var cellRect = _ordersGrid.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, true);
@@ -810,7 +811,8 @@ private void PopulateSupplierFilter()
             }
             catch (Exception ex)
             {
-                lblValidation.Text = ex.Message;
+                System.Diagnostics.Trace.TraceError($"[PurchaseOrderForm] CreateOrder failed: {ex}");
+                lblValidation.Text = "حدث خطأ أثناء إنشاء الأمر";
                 lblValidation.Visible = true;
             }
         });
@@ -979,7 +981,8 @@ private void PopulateSupplierFilter()
             }
             catch (Exception ex)
             {
-                lblValidation.Text = ex.Message;
+                System.Diagnostics.Trace.TraceError($"[PurchaseOrderForm] ReceiveOrder failed: {ex}");
+                lblValidation.Text = "حدث خطأ أثناء استلام الأمر";
                 lblValidation.Visible = true;
             }
         });
@@ -995,7 +998,7 @@ private void PopulateSupplierFilter()
 
     // --- Cancel Order ---
 
-    private async void CancelOrder(PurchaseOrderEntry order)
+    private async Task CancelOrderAsync(PurchaseOrderEntry order)
     {
         var result = RtlDialog.ShowDestructiveConfirm(
             "إلغاء أمر شراء",
@@ -1011,7 +1014,7 @@ private void PopulateSupplierFilter()
                 if (opResult.Success)
                     await LoadDataAsync();
             }
-            catch { /* handled by error state */ }
+            catch { System.Diagnostics.Trace.TraceError("[PurchaseOrder] Failed to cancel order"); }
         }
     }
 

@@ -5,6 +5,7 @@ using POS.Desktop.Forms;
 using POS.Desktop.Navigation;
 using POS.Desktop.Services;
 using POS.Domain.Interfaces;
+using POS.Application.Services;
 using POS.Application.DependencyInjection;
 using POS.Infrastructure.DependencyInjection;
 using POS.Reporting.DependencyInjection;
@@ -60,7 +61,7 @@ static class Program
 
         // Initialize DevExpress skins (spec 4.1)
         DevExpress.Skins.SkinManager.EnableFormSkins();
-        try { DevExpress.UserSkins.BonusSkins.Register(); } catch { }
+        try { DevExpress.UserSkins.BonusSkins.Register(); } catch (Exception ex) { System.Diagnostics.Trace.TraceWarning($"[Skins] BonusSkins not available, using default skin: {ex.Message}"); }
         DevExpress.LookAndFeel.UserLookAndFeel.Default.SkinName = "Office 2022 Colorful";
 
         // Build configuration
@@ -103,6 +104,10 @@ static class Program
         services.AddTransient<SupplierListForm>();
         services.AddTransient<PurchaseOrderForm>();
         services.AddTransient<PromotionsListForm>();
+        services.AddTransient<ReturnForm>();
+        services.AddTransient<ExpenseDialog>();
+        services.AddTransient<HoldSaleDialog>();
+        services.AddTransient<WithdrawalDepositDialog>();
 
         // === Register Navigation Shell ===
 
@@ -202,6 +207,12 @@ static class Program
                 mainShell.OnNavigateToTables += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<TableMapForm>());
 
+                mainShell.OnNavigateToReturns += (s, e) =>
+                {
+                    var returnForm = serviceProvider.GetRequiredService<ReturnForm>();
+                    mainShell.NavigateTo(returnForm);
+                };
+
                 mainShell.OnLogout += (s, e) =>
                 {
                     mainShell.Close();
@@ -214,8 +225,8 @@ static class Program
                     // Show login overlay or lock screen
                     var lockForm = serviceProvider.GetRequiredService<LoginForm>();
                     lockForm.ShowDialog(mainShell);
-                    // Refresh user info after unlock
-                    mainShell.UpdateUserInfo("المستخدم", "الوردية: #1");
+                    // Refresh user info and shift info after unlock
+                    RefreshShiftInfo(mainShell, serviceProvider, args.UserId);
                 };
 
                 // Store user context globally and apply permission-based nav filtering
@@ -223,9 +234,11 @@ static class Program
                 AppServiceProvider.CurrentUserRole = args.Role;
                 AppServiceProvider.CurrentUserDisplayName = args.DisplayName;
 
-                // Set user context and navigate to dashboard
-                mainShell.SetUserContext(args.UserId, args.DisplayName, args.Role);
-                mainShell.UpdateShiftInfo("الوردية: #1");
+                // Use the permissions provided by the authentication service; for legacy or
+                // fallback paths, an empty list still means "all permissions" for Admin.
+                var permissions = args.Permissions ?? new List<string>();
+                mainShell.SetUserContext(args.UserId, args.DisplayName, args.Role, permissions);
+                RefreshShiftInfo(mainShell, serviceProvider, args.UserId);
                 mainShell.NavigateTo(serviceProvider.GetRequiredService<DashboardForm>());
 
                 // Run MainShell as the new main form
@@ -241,7 +254,6 @@ static class Program
             ShowArabicError(
                 "خطأ في تشغيل البرنامج",
                 $"لم يتمكن البرنامج من البدء بشكل صحيح.\n\n" +
-                $"الخطأ: {ex.Message}\n\n" +
                 $"يرجى التواصل مع الدعم الفني.",
                 ex
             );
@@ -251,6 +263,38 @@ static class Program
             // Cleanup Serilog
             Log.CloseAndFlush();
             (serviceProvider as IDisposable)?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Loads the current open shift for the user and updates the shell label.
+    /// Falls back to a static message if no shift is open or the service is unavailable.
+    /// </summary>
+    static void RefreshShiftInfo(MainShell shell, IServiceProvider serviceProvider, Guid userId)
+    {
+        try
+        {
+            var shiftService = serviceProvider.GetService<IShiftService>();
+            if (shiftService == null)
+            {
+                shell.SetShiftInfo("الوردية: غير متاحة");
+                return;
+            }
+
+            var shift = shiftService.GetCurrentShiftAsync(userId).GetAwaiter().GetResult();
+            if (shift != null)
+            {
+                shell.SetShiftInfo($"الوردية: #{shift.ShiftNumber}");
+            }
+            else
+            {
+                shell.SetShiftInfo("الوردية: مغلقة");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("Could not load current shift: {Message}", ex.Message);
+            shell.SetShiftInfo("الوردية: غير معروفة");
         }
     }
 

@@ -20,6 +20,7 @@ public interface ISaleService
     Task<OperationResult> ReturnItemsAsync(Guid originalSaleId, List<ReturnItemRequest> items, string reason);
     Task<List<SaleSummaryDto>> GetSalesHistoryAsync(DateTime? from, DateTime? to, int page = 1, int pageSize = 20);
     Task<List<AppliedPromotionDto>> GetAppliedPromotionsAsync(Guid saleId);
+    Task<SaleSummaryDto?> GetSaleByInvoiceNumberAsync(string invoiceNumber);
 }
 
 public record ReturnItemRequest(Guid SaleItemId, decimal Quantity, string Reason);

@@ -55,7 +55,10 @@ public class BarcodeScannerService : IBarcodeScannerService, IDisposable
                 if (_serialPort.IsOpen)
                     _serialPort.Close();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BarcodeScannerService] Failed to close serial port: {ex.Message}");
+            }
             _serialPort.Dispose();
             _serialPort = null;
         }
@@ -68,17 +71,32 @@ public class BarcodeScannerService : IBarcodeScannerService, IDisposable
     {
         var wasRunning = IsRunning;
         if (wasRunning)
-            StopAsync().GetAwaiter().GetResult();
+        {
+            // Avoid blocking the UI synchronization context; StartAsync/StopAsync
+            // are currently synchronous (Task.CompletedTask) so this is safe.
+            StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
 
         Config = config;
 
         if (wasRunning)
-            StartAsync().GetAwaiter().GetResult();
+        {
+            StartAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
     }
 
     public void Dispose()
     {
-        StopAsync().GetAwaiter().GetResult();
+        try
+        {
+            StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BarcodeScannerService] Dispose failed: {ex.Message}");
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     public void SimulateBarcode(string barcode)
@@ -116,8 +134,9 @@ public class BarcodeScannerService : IBarcodeScannerService, IDisposable
                     BarcodeReceived?.Invoke(this, trimmed);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[BarcodeScannerService] Data received handler failed: {ex.Message}");
         }
     }
 }

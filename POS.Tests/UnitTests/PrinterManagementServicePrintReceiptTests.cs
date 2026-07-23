@@ -613,4 +613,157 @@ public class PrinterManagementServicePrintReceiptTests
             It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
+
+    // ========================================================================
+    // PrintKitchenTicketsAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task PrintKitchenTicketsAsync_WithStationAndPrinter_PrintsTicket()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var stationId = Guid.NewGuid();
+        var printerId = Guid.NewGuid();
+        var sale = CreateTestSale(saleId);
+
+        var saleItem = new SaleItem
+        {
+            Id = Guid.NewGuid(),
+            SaleId = saleId,
+            ProductId = Guid.NewGuid(),
+            ProductName = "Pizza",
+            ProductArabicName = "بيتزا",
+            KitchenStationId = stationId,
+            Quantity = 1,
+            UnitPrice = 50.000m,
+            TotalPrice = 50.000m,
+            LineTotal = 58.000m
+        };
+
+        var station = new KitchenStation
+        {
+            Id = stationId,
+            Name = "Main Kitchen",
+            ArabicName = "المطبخ الرئيسي",
+            PrinterId = printerId,
+            IsActive = true
+        };
+
+        var kitchenPrinter = new Printer
+        {
+            Id = printerId,
+            Name = "Kitchen Printer 1",
+            PrinterType = PrinterType.Thermal,
+            Connection = PrinterConnection.Network,
+            AssignedRole = PrinterRole.Kitchen,
+            IsActive = true
+        };
+
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var printerServiceMock = new Mock<IPrinterService>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sales repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(sale);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // Users repo
+        var userRepoMock = new Mock<IRepository<User>>();
+        userRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(new List<User>());
+        unitOfWorkMock.Setup(u => u.Users).Returns(userRepoMock.Object);
+
+        // Tables repo
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+
+        // SaleItems repo — return the item with KitchenStationId
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItem, bool>>>()))
+            .ReturnsAsync(new List<SaleItem> { saleItem });
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // SaleItemModifiers repo — no modifiers
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+
+        // KitchenStations repo — return the configured station
+        var stationRepoMock = new Mock<IRepository<KitchenStation>>();
+        stationRepoMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<KitchenStation> { station });
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(stationRepoMock.Object);
+
+        // Printers repo — return the kitchen printer
+        var printerRepoMock = new Mock<IRepository<Printer>>();
+        printerRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Printer, bool>>>()))
+            .ReturnsAsync(new List<Printer> { kitchenPrinter });
+        unitOfWorkMock.Setup(u => u.Printers).Returns(printerRepoMock.Object);
+
+        // Hardware printer service — succeed
+        printerServiceMock
+            .Setup(p => p.PrintKitchenTicketAsync(
+                It.IsAny<Printer>(), It.IsAny<Sale>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        var service = new PrinterManagementService(unitOfWorkMock.Object, printerServiceMock.Object, auditServiceMock.Object);
+
+        // Act
+        var result = await service.PrintKitchenTicketsAsync(saleId);
+
+        // Assert
+        result.Should().BeTrue();
+        printerServiceMock.Verify(p => p.PrintKitchenTicketAsync(
+            It.Is<Printer>(pr => pr.Id == printerId),
+            It.Is<Sale>(s => s.Id == saleId),
+            It.Is<string>(name => name == "Main Kitchen")), Times.Once);
+    }
+
+    [Fact]
+    public async Task PrintKitchenTicketsAsync_SaleNotFound_ReturnsFalse()
+    {
+        // Arrange
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var printerServiceMock = new Mock<IPrinterService>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Sale?)null);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new PrinterManagementService(unitOfWorkMock.Object, printerServiceMock.Object, auditServiceMock.Object);
+
+        // Act
+        var result = await service.PrintKitchenTicketsAsync(Guid.NewGuid());
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    private static Mock<IRepository<T>> CreateEmptyRepoMock<T>() where T : BaseEntity
+    {
+        var mock = new Mock<IRepository<T>>();
+        mock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<T, bool>>>()))
+            .ReturnsAsync(new List<T>());
+        return mock;
+    }
 }

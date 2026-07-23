@@ -211,6 +211,7 @@ public class ProductServiceTests
         unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
         unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
         unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+        unitOfWorkMock.Setup(u => u.UnitOfMeasures).Returns(CreateEmptyRepoMock<UnitOfMeasure>().Object);
 
         var service = new ProductService(unitOfWorkMock.Object, auditServiceMock.Object);
         return (service, unitOfWorkMock, auditServiceMock);
@@ -1107,5 +1108,159 @@ public class ProductServiceTests
 
         unitOfWorkMock.Verify(u => u.Categories.AddAsync(
             It.Is<Category>(c => c.ParentCategoryId == null)), Times.Once);
+    }
+
+    // ========================================================================
+    // GetModifierGroupsAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task GetModifierGroupsAsync_WithModifiersAndSizes_ReturnsHierarchy()
+    {
+        // Arrange
+        var groupId = Guid.NewGuid();
+        var modifierId = Guid.NewGuid();
+        var sizeId = Guid.NewGuid();
+
+        var groups = new List<ModifierGroup>
+        {
+            new() { Id = groupId, Name = "Extra Toppings", ArabicName = "إضافات", IsActive = true, IsRequired = false, MinSelections = 0, MaxSelections = 3, SortOrder = 1 }
+        };
+        var modifiers = new List<Modifier>
+        {
+            new() { Id = modifierId, ModifierGroupId = groupId, Name = "Cheese", ArabicName = "جبنة", Price = 2.000m, IsActive = true }
+        };
+        var sizes = new List<ModifierSize>
+        {
+            new() { Id = sizeId, ModifierId = modifierId, Name = "Large", ArabicName = "كبير", Price = 0, PriceAdjustment = 1.000m }
+        };
+
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks();
+
+        // Override the stub repos with actual data
+        var groupRepoMock = new Mock<IRepository<ModifierGroup>>();
+        groupRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<ModifierGroup, bool>>>()))
+            .ReturnsAsync(groups);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(groupRepoMock.Object);
+
+        var modRepoMock = new Mock<IRepository<Modifier>>();
+        modRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Modifier, bool>>>()))
+            .ReturnsAsync(modifiers);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(modRepoMock.Object);
+
+        var sizeRepoMock = new Mock<IRepository<ModifierSize>>();
+        sizeRepoMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(sizes);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(sizeRepoMock.Object);
+
+        // Act
+        var result = await service.GetModifierGroupsAsync();
+
+        // Assert
+        result.Should().HaveCount(1);
+        var group = result[0];
+        group.Name.Should().Be("Extra Toppings");
+        group.ArabicName.Should().Be("إضافات");
+        group.IsRequired.Should().BeFalse();
+        group.MaxSelections.Should().Be(3);
+
+        group.Modifiers.Should().HaveCount(1);
+        var mod = group.Modifiers[0];
+        mod.Name.Should().Be("Cheese");
+        mod.ArabicName.Should().Be("جبنة");
+        mod.Price.Should().Be(2.000m);
+
+        mod.Sizes.Should().HaveCount(1);
+        mod.Sizes[0].Name.Should().Be("Large");
+        mod.Sizes[0].PriceAdjustment.Should().Be(1.000m);
+    }
+
+    [Fact]
+    public async Task GetModifierGroupsAsync_NoActiveGroups_ReturnsEmpty()
+    {
+        // Arrange
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks();
+
+        var groupRepoMock = new Mock<IRepository<ModifierGroup>>();
+        groupRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<ModifierGroup, bool>>>()))
+            .ReturnsAsync(new List<ModifierGroup>());
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(groupRepoMock.Object);
+
+        var modRepoMock = new Mock<IRepository<Modifier>>();
+        modRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Modifier, bool>>>()))
+            .ReturnsAsync(new List<Modifier>());
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(modRepoMock.Object);
+
+        var sizeRepoMock = new Mock<IRepository<ModifierSize>>();
+        sizeRepoMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<ModifierSize>());
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(sizeRepoMock.Object);
+
+        // Act
+        var result = await service.GetModifierGroupsAsync();
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    // ========================================================================
+    // GetUnitsOfMeasureAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task GetUnitsOfMeasureAsync_HasActiveUnits_ReturnsOrderedList()
+    {
+        // Arrange
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks();
+
+        var units = new List<UnitOfMeasure>
+        {
+            new() { Id = Guid.NewGuid(), Name = "Kilogram", ArabicName = "كيلوغرام", Symbol = "kg", ArabicSymbol = "كغ", Category = "Weight", ConversionFactor = 1m, IsBaseUnit = true, DecimalPlaces = 3, IsActive = true, SortOrder = 1 },
+            new() { Id = Guid.NewGuid(), Name = "Gram", ArabicName = "غرام", Symbol = "g", ArabicSymbol = "غ", Category = "Weight", ConversionFactor = 1000m, IsBaseUnit = false, DecimalPlaces = 0, IsActive = true, SortOrder = 2 },
+            new() { Id = Guid.NewGuid(), Name = "Liter", ArabicName = "لتر", Symbol = "L", ArabicSymbol = "ل", Category = "Volume", ConversionFactor = 1m, IsBaseUnit = true, DecimalPlaces = 3, IsActive = true, SortOrder = 1 }
+        };
+
+        var unitRepoMock = new Mock<IRepository<UnitOfMeasure>>();
+        unitRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitOfMeasure, bool>>>()))
+            .ReturnsAsync(units);
+        unitOfWorkMock.Setup(u => u.UnitOfMeasures).Returns(unitRepoMock.Object);
+
+        // Act
+        var result = await service.GetUnitsOfMeasureAsync();
+
+        // Assert — ordered by Category then SortOrder
+        result.Should().HaveCount(3);
+        result[0].Name.Should().Be("Liter");
+        result[0].Category.Should().Be("Volume");
+        result[1].Name.Should().Be("Kilogram");
+        result[1].Category.Should().Be("Weight");
+        result[2].Name.Should().Be("Gram");
+        result[2].Category.Should().Be("Weight");
+    }
+
+    [Fact]
+    public async Task GetUnitsOfMeasureAsync_NoActiveUnits_ReturnsEmpty()
+    {
+        // Arrange
+        var (service, unitOfWorkMock, _) = BuildServiceWithMocks();
+
+        var unitRepoMock = new Mock<IRepository<UnitOfMeasure>>();
+        unitRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitOfMeasure, bool>>>()))
+            .ReturnsAsync(new List<UnitOfMeasure>());
+        unitOfWorkMock.Setup(u => u.UnitOfMeasures).Returns(unitRepoMock.Object);
+
+        // Act
+        var result = await service.GetUnitsOfMeasureAsync();
+
+        // Assert
+        result.Should().BeEmpty();
     }
 }

@@ -83,6 +83,8 @@ public static class FontAwesomeIcons
     public const string UserLock = "\uf502";       // fa-user-lock
     public const string Lock = "\uf023";           // fa-lock
     public const string Unlock = "\uf09c";         // fa-unlock
+    public const string Eye = "\uf06e";            // fa-eye
+    public const string EyeSlash = "\uf070";       // fa-eye-slash
     public const string Logout = "\uf08b";         // fa-right-from-bracket (or fa-sign-out-alt)
     public const string Login = "\uf090";          // fa-right-to-bracket (or fa-sign-in-alt)
     public const string Shield = "\uf3ed";         // fa-shield-halved
@@ -146,6 +148,7 @@ public static class FontAwesomeIcons
     public const string Transfer = "\uf362";       // fa-arrow-right-arrow-left
     public const string Version = "\uf021";        // fa-rotate (or fa-code-fork)
     public const string QrCode = "\uf029";         // fa-qrcode
+    public const string Copyright = "\uf1f9";        // fa-copyright
 
     /// <summary>
     /// Returns the icon character for the given category, or empty string if not found.

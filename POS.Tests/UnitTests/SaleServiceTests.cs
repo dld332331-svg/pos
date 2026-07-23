@@ -330,6 +330,7 @@ public class SaleServiceTests
         unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
         unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
         unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(CreateEmptyRepoMock<SalePromotion>().Object);
 
         var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
 
@@ -577,8 +578,7 @@ public class SaleServiceTests
         unitOfWorkMock.Verify(u => u.InventoryItems.UpdateAsync(
             It.Is<InventoryItem>(inv => inv.ReservedQuantity == 3m)), Times.Once);
 
-        // SaveChanges should be called
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        // Transaction should be committed\r\n        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     // ========================================================================
@@ -1414,7 +1414,7 @@ public class SaleServiceTests
         // Transaction was committed
         unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
         unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -2002,8 +2002,7 @@ public class SaleServiceTests
         unitOfWorkMock.Verify(u => u.Sales.UpdateAsync(
             It.Is<Sale>(s => s.SubTotal == 0 && s.TotalAmount == 0)), Times.Once);
 
-        // SaveChanges called
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        // Transaction committed\r\n        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -2151,7 +2150,7 @@ public class SaleServiceTests
                 s.TaxAmount == 6.400m &&
                 s.TotalAmount == 46.400m)), Times.Once);
 
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -2203,7 +2202,7 @@ public class SaleServiceTests
                 si.TaxAmount == 3.200m &&
                 si.LineTotal == 23.200m)), Times.Once);
 
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -2374,7 +2373,7 @@ public class SaleServiceTests
                 s.TaxAmount == 3.200m &&
                 s.TotalAmount == 23.200m)), Times.Once);
 
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     // ========================================================================
@@ -2433,7 +2432,7 @@ public class SaleServiceTests
         unitOfWorkMock.Verify(u => u.Sales.UpdateAsync(
             It.Is<Sale>(s => s.DiscountAmount == 5.000m && s.TotalAmount == 18.200m)), Times.Once);
 
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
 
         // Audit was logged with DiscountApplied
         auditServiceMock.Verify(a => a.LogAsync(
@@ -2569,7 +2568,7 @@ public class SaleServiceTests
         sale.TotalAmount.Should().Be(58.000m);
 
         unitOfWorkMock.Verify(u => u.Sales.UpdateAsync(It.IsAny<Sale>()), Times.Once);
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
 
         auditServiceMock.Verify(a => a.LogAsync(
             userId,
@@ -2697,7 +2696,7 @@ public class SaleServiceTests
             null), Times.Once);
 
         unitOfWorkMock.Verify(u => u.Sales.UpdateAsync(It.IsAny<Sale>()), Times.Once);
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     // ========================================================================
@@ -3384,7 +3383,7 @@ public class SaleServiceTests
             It.Is<SaleItemModifier>(m => m.ModifierName == "Extra Cream" && m.AdditionalPrice == 1.500m)), Times.Once);
 
         unitOfWorkMock.Verify(u => u.Sales.UpdateAsync(It.IsAny<Sale>()), Times.Once);
-        unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.AtLeastOnce);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -3668,6 +3667,64 @@ public class SaleServiceTests
         item.Modifiers.Should().HaveCount(2);
         item.Modifiers.Should().Contain(m => m.ModifierName == "Old Mod");
         item.Modifiers.Should().Contain(m => m.ModifierName == "Sugar");
+    }
+
+    // ========================================================================
+    // GetAppliedPromotionsAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task GetAppliedPromotionsAsync_NoPromotions_ReturnsEmpty()
+    {
+        // Arrange
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product: null);
+
+        // Act
+        var result = await service.GetAppliedPromotionsAsync(Guid.NewGuid());
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAppliedPromotionsAsync_HasPromotions_ReturnsOrderedList()
+    {
+        // Arrange — use manual mock with SalePromotions setup
+        var saleId = Guid.NewGuid();
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        var promotions = new List<SalePromotion>
+        {
+            new() { SaleId = saleId, PromotionId = Guid.NewGuid(), DiscountAmount = 5.000m, Description = "الخصم الأول", CreatedAt = new DateTime(2026, 7, 19, 10, 0, 0, DateTimeKind.Utc) },
+            new() { SaleId = saleId, PromotionId = Guid.NewGuid(), DiscountAmount = 10.000m, Description = "الخصم الثاني", CreatedAt = new DateTime(2026, 7, 19, 11, 0, 0, DateTimeKind.Utc) }
+        };
+
+        var salePromoRepoMock = new Mock<IRepository<SalePromotion>>();
+        salePromoRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<SalePromotion, bool>>>()))
+            .ReturnsAsync(promotions);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(salePromoRepoMock.Object);
+
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+
+        // Act
+        var result = await service.GetAppliedPromotionsAsync(saleId);
+
+        // Assert — ordered by CreatedAt
+        result.Should().HaveCount(2);
+        result[0].DiscountAmount.Should().Be(5.000m);
+        result[0].Name.Should().Be("الخصم الأول");
+        result[1].DiscountAmount.Should().Be(10.000m);
+        result[1].Name.Should().Be("الخصم الثاني");
     }
 }
 

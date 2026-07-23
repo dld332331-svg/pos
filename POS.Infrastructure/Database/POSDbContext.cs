@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using POS.Domain.Entities;
 
 namespace POS.Infrastructure.Database;
@@ -6,6 +7,12 @@ namespace POS.Infrastructure.Database;
 public class POSDbContext : DbContext
 {
     public POSDbContext(DbContextOptions<POSDbContext> options) : base(options) { }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (optionsBuilder is null) return;
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+    }
 
     // Users & Auth
     public DbSet<User> Users => Set<User>();
@@ -88,6 +95,10 @@ public class POSDbContext : DbContext
         // ============================================================
         // Global: Soft delete query filter for all BaseEntity entities
         // ============================================================
+        // Cache the open generic method once to avoid repeated reflection lookups.
+        var applyQueryFilterMethod = typeof(POSDbContext).GetMethod(nameof(ApplyQueryFilter),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
@@ -95,9 +106,7 @@ public class POSDbContext : DbContext
                 // AuditLog is always queryable regardless of IsDeleted
                 if (entityType.ClrType != typeof(AuditLog))
                 {
-                    var method = typeof(POSDbContext).GetMethod(nameof(ApplyQueryFilter),
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-                        .MakeGenericMethod(entityType.ClrType);
+                    var method = applyQueryFilterMethod!.MakeGenericMethod(entityType.ClrType);
                     method.Invoke(null, new object[] { modelBuilder });
                 }
             }
@@ -637,8 +646,7 @@ public class POSDbContext : DbContext
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.UserId).HasMaxLength(450);
-            entity.Property(e => e.ActionType).HasMaxLength(100);
+            entity.Property(e => e.ActionType);
             entity.Property(e => e.EntityName).HasMaxLength(200);
             entity.Property(e => e.EntityId);
             entity.Property(e => e.BeforeValue).HasColumnType("NVARCHAR(MAX)");
@@ -704,6 +712,11 @@ public class POSDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.TableId)
                   .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Shift)
+                  .WithMany()
+                  .HasForeignKey(e => e.ShiftId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ============================================================

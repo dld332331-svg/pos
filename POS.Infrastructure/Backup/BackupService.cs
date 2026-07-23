@@ -165,7 +165,10 @@ public class BackupService : IBackupService
                 await _unitOfWork.BackupRecords.AddAsync(failedRecord);
                 await _unitOfWork.SaveChangesAsync();
             }
-            catch { }
+            catch (Exception recordEx)
+            {
+                _logger.LogError(recordEx, "Failed to record failed backup attempt");
+            }
 
             throw;
         }

@@ -306,7 +306,7 @@ public sealed class PosTerminalFormUITests : IDisposable
         // (s, e) => InitiatePayment("Cash") would invoke via PerformClick().
         _host.InvokeOnUI(() =>
         {
-            var method = typeof(PosTerminalForm).GetMethod("InitiatePayment",
+            var method = typeof(PosTerminalForm).GetMethod("InitiatePaymentAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             method?.Invoke(_host.Control, new object[] { "Cash" });
         });

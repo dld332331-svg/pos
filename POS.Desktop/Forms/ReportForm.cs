@@ -434,7 +434,9 @@ public class ReportForm : UserControl
 
     private async void ExportReportAsync(object? sender, EventArgs e)
     {
-        if (_reportExporter is null || _resultsGrid.Rows.Count == 0) return;
+        try
+        {
+            if (_reportExporter is null || _resultsGrid.Rows.Count == 0) return;
 
         using var formatDialog = new Form { Text = "اختر صيغة التصدير", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MinimizeBox = false, MaximizeBox = false, Size = new Size(300, 160), RightToLeft = RightToLeft.Yes };
         var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(20), WrapContents = false };
@@ -479,6 +481,11 @@ public class ReportForm : UserControl
         {
             await File.WriteAllBytesAsync(saveDialog.FileName, data);
             RtlMessageBox.Show($"تم تصدير التقرير بنجاح إلى:\n{saveDialog.FileName}", "تصدير التقرير", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, MessageBoxOptions.RightAlign | MessageBoxOptions.RtlReading);
+        }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[ReportForm] ExportReportAsync failed: {ex}");
         }
     }
 }

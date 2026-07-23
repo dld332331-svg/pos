@@ -40,21 +40,21 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         await _dbSet.AddAsync(entity);
     }
 
-    public virtual async Task UpdateAsync(T entity)
+    public virtual Task UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         entity.UpdatedAt = DateTime.UtcNow;
         _dbSet.Update(entity);
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
-    public virtual async Task DeleteAsync(T entity)
+    public virtual Task DeleteAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;
         _dbSet.Update(entity);
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     public virtual async Task<(IReadOnlyList<T> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize)

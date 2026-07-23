@@ -58,9 +58,10 @@ public class PosTerminalForm : UserControl
     // ========================================================================
     // Dependencies
     // ========================================================================
-    private readonly ISaleService? _saleService;
-    private readonly IProductService? _productService;
-    private readonly IPrinterManagementService? _printerManagementService;
+    private ISaleService? _saleService;
+    private IProductService? _productService;
+    private IPrinterManagementService? _printerManagementService;
+    private IServiceScope? _formScope;
     private List<ModifierGroupDto> _modifierGroups = new();
     private bool _modifierGroupsLoaded;
     private bool _receiptPrinted;
@@ -176,6 +177,7 @@ public class PosTerminalForm : UserControl
         {
             _autoDismissTimer.Stop();
             _autoDismissTimer.Dispose();
+            _formScope?.Dispose();
         }
         base.Dispose(disposing);
     }
@@ -201,6 +203,16 @@ public class PosTerminalForm : UserControl
                 SetState(_saleItems.Count > 0 ? PosState.ActiveSale : PosState.EmptySale);
             }
         };
+
+        if (AppServiceProvider.Provider != null)
+        {
+            _formScope = AppServiceProvider.Provider.CreateScope();
+            var sp = _formScope.ServiceProvider;
+            _saleService = sp.GetService(typeof(ISaleService)) as ISaleService;
+            _productService = sp.GetService(typeof(IProductService)) as IProductService;
+            _printerManagementService = sp.GetService(typeof(IPrinterManagementService)) as IPrinterManagementService;
+            _currentUserId = AppServiceProvider.CurrentUserId;
+        }
     }
 
     public PosTerminalForm(ISaleService saleService, IProductService productService,
@@ -220,7 +232,7 @@ public class PosTerminalForm : UserControl
     private void InitializeComponent()
     {
         RightToLeft = RightToLeft.Yes;
-        BackColor = DesignTokens.BackgroundColor;
+        BackColor = DesignTokens.Colors.Background;
         Font = ArabicFont10;
         Dock = DockStyle.Fill;
         DoubleBuffered = true;
@@ -230,8 +242,8 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Right,
             Width = 460,
-            BackColor = DesignTokens.SurfaceColor,
-            Padding = new Padding(DesignTokens.SpacingSM)
+            BackColor = DesignTokens.Colors.Surface,
+            Padding = new Padding(DesignTokens.Spacing.Small)
         };
 
         BuildInvoiceHeader();
@@ -248,8 +260,8 @@ public class PosTerminalForm : UserControl
         _leftPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = DesignTokens.BackgroundColor,
-            Padding = new Padding(DesignTokens.SpacingSM)
+            BackColor = DesignTokens.Colors.Background,
+            Padding = new Padding(DesignTokens.Spacing.Small)
         };
 
         BuildSearchBox();
@@ -265,8 +277,8 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Bottom,
             Height = 56,
-            BackColor = DesignTokens.PrimaryDarkColor,
-            Padding = new Padding(DesignTokens.SpacingMD)
+            BackColor = DesignTokens.Colors.PrimaryHover,
+            Padding = new Padding(DesignTokens.Spacing.Standard)
         };
 
         BuildBottomBar();
@@ -279,7 +291,7 @@ public class PosTerminalForm : UserControl
         _overlayPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(220, DesignTokens.SurfaceColor),
+            BackColor = Color.FromArgb(220, DesignTokens.Colors.Surface),
             Visible = false
         };
 
@@ -306,13 +318,13 @@ public class PosTerminalForm : UserControl
         Controls.Add(_bottomBar);
 
         // Wire events
-        _cashPaymentButton.Click += (s, e) => InitiatePayment("Cash");
-        _cardPaymentButton.Click += (s, e) => InitiatePayment("Card");
-        _holdButton.Click += (s, e) => InitiateHold();
-        _cancelButton.Click += (s, e) => CancelSale();
+        _cashPaymentButton.Click += (s, e) => _ = InitiatePaymentAsync("Cash");
+        _cardPaymentButton.Click += (s, e) => _ = InitiatePaymentAsync("Card");
+        _holdButton.Click += (s, e) => _ = InitiateHoldAsync();
+        _cancelButton.Click += (s, e) => _ = CancelSaleAsync();
         _retrieveButton.Click += async (s, e) => await ShowRetrieveDialog();
         _cashDrawerButton.Click += async (s, e) => await OpenCashDrawerAsync();
-        _discountButton.Click += (s, e) => ShowDiscountDialog();
+        _discountButton.Click += (s, e) => _ = ShowDiscountDialogAsync();
         _customerButton.Click += (s, e) => AssignCustomer();
         _searchTextBox.TextChanged += async (s, e) => await OnSearchTextChanged();
         _searchTextBox.KeyDown += SearchTextBox_KeyDown;
@@ -328,15 +340,15 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Top,
             Height = 70,
-            BackColor = DesignTokens.CardColor,
-            Padding = new Padding(DesignTokens.SpacingSM)
+            BackColor = DesignTokens.Colors.Card,
+            Padding = new Padding(DesignTokens.Spacing.Small)
         };
 
         _invoiceNumberLabel = new Label
         {
             Text = "فاتورة جديدة",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Right,
             Height = 30,
             TextAlign = ContentAlignment.MiddleRight,
@@ -348,7 +360,7 @@ public class PosTerminalForm : UserControl
         {
             Text = DateTime.Now.ToString("yyyy/MM/dd HH:mm"),
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Right,
             Height = 20,
             TextAlign = ContentAlignment.MiddleRight,
@@ -360,7 +372,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "جديد",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.SuccessColor,
+            ForeColor = DesignTokens.Colors.Success,
             Dock = DockStyle.Left,
             Width = 70,
             Height = 26,
@@ -373,7 +385,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "0 أصناف",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextHintColor,
+            ForeColor = DesignTokens.Colors.TextHint,
             Dock = DockStyle.Left,
             Width = 80,
             Height = 20,
@@ -396,10 +408,10 @@ public class PosTerminalForm : UserControl
             AllowUserToDeleteRows = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             RowHeadersVisible = false,
-            BackgroundColor = DesignTokens.SurfaceColor,
+            BackgroundColor = DesignTokens.Colors.Surface,
             BorderStyle = BorderStyle.None,
             CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-            GridColor = DesignTokens.BorderColor,
+            GridColor = DesignTokens.Colors.Border,
             RightToLeft = RightToLeft.Yes,
             Font = ArabicFont10,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
@@ -428,8 +440,8 @@ public class PosTerminalForm : UserControl
         _itemsGrid.CellPainting += ItemsGrid_CellPainting;
         _itemsGrid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = DesignTokens.CardColor,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            BackColor = DesignTokens.Colors.Card,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Font = ArabicFont12,
             Alignment = DataGridViewContentAlignment.MiddleCenter,
             Padding = new Padding(4)
@@ -442,8 +454,8 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Bottom,
             Height = 135,
-            BackColor = DesignTokens.CardColor,
-            Padding = new Padding(DesignTokens.SpacingSM, DesignTokens.SpacingMD, DesignTokens.SpacingSM, DesignTokens.SpacingSM)
+            BackColor = DesignTokens.Colors.Card,
+            Padding = new Padding(DesignTokens.Spacing.Small, DesignTokens.Spacing.Standard, DesignTokens.Spacing.Small, DesignTokens.Spacing.Small)
         };
 
         _subtotalLabel = CreateTotalRow("المجموع الفرعي", "0.000 JOD", 0);
@@ -454,7 +466,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "",
             Font = ArabicFont12,
-            ForeColor = DesignTokens.WarningColor,
+            ForeColor = DesignTokens.Colors.Warning,
             Location = new Point(10, 76),
             Size = new Size(420, 20),
             TextAlign = ContentAlignment.MiddleRight,
@@ -465,14 +477,14 @@ public class PosTerminalForm : UserControl
         {
             Location = new Point(10, 100),
             Size = new Size(420, 1),
-            BackColor = DesignTokens.BorderColor
+            BackColor = DesignTokens.Colors.Border
         };
 
         _totalLabel = new Label
         {
             Text = "الإجمالي:  0.000 JOD",
             Font = ArabicFont20,
-            ForeColor = DesignTokens.PrimaryColor,
+            ForeColor = DesignTokens.Colors.Primary,
             Location = new Point(10, 108),
             Size = new Size(420, 38),
             TextAlign = ContentAlignment.MiddleRight
@@ -492,13 +504,13 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Bottom,
             Height = 38,
-            Padding = new Padding(0, DesignTokens.SpacingXS, 0, 0)
+            Padding = new Padding(0, DesignTokens.Spacing.Micro, 0, 0)
         };
 
-        _holdButton = CreateActionButton($" {FontAwesomeIcons.Hold}  تجميد (F4)", DesignTokens.InfoColor, DockStyle.Left);
-        _cancelButton = CreateActionButton($" {FontAwesomeIcons.Cancel}  إلغاء (F5)", DesignTokens.ErrorColor, DockStyle.Left);
-        _discountButton = CreateActionButton($" {FontAwesomeIcons.Discount}  خصم", DesignTokens.WarningColor, DockStyle.Left);
-        _customerButton = CreateActionButton($" {FontAwesomeIcons.Customer}  عميل", DesignTokens.SecondaryColor, DockStyle.Right);
+        _holdButton = CreateActionButton($" {FontAwesomeIcons.Hold}  تجميد (F4)", DesignTokens.Colors.Info, DockStyle.Left);
+        _cancelButton = CreateActionButton($" {FontAwesomeIcons.Cancel}  إلغاء (F5)", DesignTokens.Colors.Error, DockStyle.Left);
+        _discountButton = CreateActionButton($" {FontAwesomeIcons.Discount}  خصم", DesignTokens.Colors.Warning, DockStyle.Left);
+        _customerButton = CreateActionButton($" {FontAwesomeIcons.Customer}  عميل", DesignTokens.Colors.Success, DockStyle.Right);
 
         _actionButtonsPanel.Controls.Add(_holdButton);
         _actionButtonsPanel.Controls.Add(_cancelButton);
@@ -515,9 +527,9 @@ public class PosTerminalForm : UserControl
             Font = ArabicFont12,
             RightToLeft = RightToLeft.Yes,
             PlaceholderText = $" {FontAwesomeIcons.Search}  بحث بالباركود أو اسم المنتج (F8)...",
-            BackColor = DesignTokens.SurfaceColor,
+            BackColor = DesignTokens.Colors.Surface,
             BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 0, 0, DesignTokens.SpacingSM)
+            Margin = new Padding(0, 0, 0, DesignTokens.Spacing.Small)
         };
     }
 
@@ -527,8 +539,8 @@ public class PosTerminalForm : UserControl
         {
             Dock = DockStyle.Top,
             Height = 46,
-            BackColor = DesignTokens.BackgroundColor,
-            Margin = new Padding(0, 0, 0, DesignTokens.SpacingSM)
+            BackColor = DesignTokens.Colors.Background,
+            Margin = new Padding(0, 0, 0, DesignTokens.Spacing.Small)
         };
 
         _categoryFlowLayout = new FlowLayoutPanel
@@ -537,7 +549,7 @@ public class PosTerminalForm : UserControl
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = DesignTokens.BackgroundColor
+            BackColor = DesignTokens.Colors.Background
         };
 
         _categoryPanel.Controls.Add(_categoryFlowLayout);
@@ -551,8 +563,8 @@ public class PosTerminalForm : UserControl
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = true,
             AutoScroll = true,
-            BackColor = DesignTokens.BackgroundColor,
-            Padding = new Padding(DesignTokens.SpacingXS)
+            BackColor = DesignTokens.Colors.Background,
+            Padding = new Padding(DesignTokens.Spacing.Micro)
         };
     }
 
@@ -560,19 +572,19 @@ public class PosTerminalForm : UserControl
     {
         _cashPaymentButton = CreateBottomButton(
             $" {FontAwesomeIcons.Cash}  نقدي (F2)",
-            DesignTokens.SuccessColor, DockStyle.Right, false);
+            DesignTokens.Colors.Success, DockStyle.Right, false);
 
         _cardPaymentButton = CreateBottomButton(
             $" {FontAwesomeIcons.Card}  بطاقة (F3)",
-            DesignTokens.InfoColor, DockStyle.Right, false);
+            DesignTokens.Colors.Info, DockStyle.Right, false);
 
         _retrieveButton = CreateBottomButton(
             $" {FontAwesomeIcons.Retrieve}  استرجاع",
-            DesignTokens.PrimaryDarkColor, DockStyle.Left, true);
+            DesignTokens.Colors.PrimaryHover, DockStyle.Left, true);
 
         _cashDrawerButton = CreateBottomButton(
             $" {FontAwesomeIcons.Money}  درج النقود",
-            DesignTokens.CashDrawerColor, DockStyle.Left, true);
+            DesignTokens.Colors.CashDrawer, DockStyle.Left, true);
 
         // Status bar label in bottom bar
         _statusBarLabel = new Label
@@ -597,7 +609,7 @@ public class PosTerminalForm : UserControl
         _emptySalePanel = new Panel
         {
             Size = new Size(600, 300),
-            BackColor = DesignTokens.BackgroundColor,
+            BackColor = DesignTokens.Colors.Background,
             Margin = new Padding(40)
         };
 
@@ -605,7 +617,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.PosTerminal,
             Font = IconFont48,
-            ForeColor = DesignTokens.TextHintColor,
+            ForeColor = DesignTokens.Colors.TextHint,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter
@@ -615,7 +627,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "نقطة البيع",
             Font = ArabicFont24,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
             Height = 40,
             TextAlign = ContentAlignment.MiddleCenter
@@ -625,7 +637,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "ابحث عن منتج أو امسح الباركود لبدء الفاتورة",
             Font = ArabicFont12,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -635,7 +647,7 @@ public class PosTerminalForm : UserControl
         {
             Text = $"F2: دفع نقدي   |   F3: بطاقة   |   F4: تعليق   |   F8: بحث   |   Esc: إلغاء",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextHintColor,
+            ForeColor = DesignTokens.Colors.TextHint,
             Dock = DockStyle.Top,
             Height = 26,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -657,7 +669,7 @@ public class PosTerminalForm : UserControl
         _loadingOverlay = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(200, DesignTokens.SurfaceColor),
+            BackColor = Color.FromArgb(200, DesignTokens.Colors.Surface),
             Visible = false
         };
 
@@ -665,7 +677,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Loading,
             Font = IconFont48,
-            ForeColor = DesignTokens.PrimaryColor,
+            ForeColor = DesignTokens.Colors.Primary,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -676,7 +688,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "جاري التحميل...",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 40,
             TextAlign = ContentAlignment.MiddleCenter
@@ -691,7 +703,7 @@ public class PosTerminalForm : UserControl
         _productNotFoundOverlay = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(200, DesignTokens.SurfaceColor),
+            BackColor = Color.FromArgb(200, DesignTokens.Colors.Surface),
             Visible = false
         };
 
@@ -699,7 +711,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Search,
             Font = IconFont48,
-            ForeColor = DesignTokens.WarningColor,
+            ForeColor = DesignTokens.Colors.Warning,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -710,7 +722,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "المنتج غير موجود",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -720,7 +732,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "لم يتم العثور على منتج مطابق للبحث. تأكد من الاسم أو الباركود.",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -731,7 +743,7 @@ public class PosTerminalForm : UserControl
             Text = $"{FontAwesomeIcons.Cancel}  إغلاق",
             Font = ArabicFont12,
             ForeColor = Color.White,
-            BackColor = DesignTokens.WarningColor,
+            BackColor = DesignTokens.Colors.Warning,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(140, 38),
             Location = new Point(250, 260),
@@ -750,7 +762,7 @@ public class PosTerminalForm : UserControl
         _outOfStockOverlay = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(200, DesignTokens.SurfaceColor),
+            BackColor = Color.FromArgb(200, DesignTokens.Colors.Surface),
             Visible = false
         };
 
@@ -758,7 +770,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Warning,
             Font = IconFont48,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -769,7 +781,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "المنتج غير متوفر في المخزون",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -779,7 +791,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "الكمية المتاحة غير كافية لإتمام العملية",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -803,7 +815,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Success,
             Font = IconFont48,
-            ForeColor = DesignTokens.SuccessColor,
+            ForeColor = DesignTokens.Colors.Success,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -814,7 +826,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "تم الدفع بنجاح!",
             Font = ArabicFont24,
-            ForeColor = DesignTokens.SuccessColor,
+            ForeColor = DesignTokens.Colors.Success,
             Dock = DockStyle.Top,
             Height = 45,
             TextAlign = ContentAlignment.MiddleCenter
@@ -825,7 +837,7 @@ public class PosTerminalForm : UserControl
             Text = "",
             Name = "lblChangeAmount",
             Font = ArabicFont20,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
             Height = 40,
             TextAlign = ContentAlignment.MiddleCenter
@@ -835,7 +847,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "سيتم العودة تلقائياً...",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 24,
             TextAlign = ContentAlignment.MiddleCenter
@@ -860,7 +872,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Error,
             Font = IconFont48,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -871,7 +883,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "فشلت عملية الدفع",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -882,7 +894,7 @@ public class PosTerminalForm : UserControl
             Text = "يرجى المحاولة مرة أخرى أو استخدام طريقة دفع مختلفة",
             Name = "lblErrorDetail",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -893,7 +905,7 @@ public class PosTerminalForm : UserControl
             Text = $"{FontAwesomeIcons.Retrieve}  إعادة المحاولة",
             Font = ArabicFont12,
             ForeColor = Color.White,
-            BackColor = DesignTokens.PrimaryColor,
+            BackColor = DesignTokens.Colors.Primary,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(160, 40),
             Location = new Point(200, 220),
@@ -905,8 +917,8 @@ public class PosTerminalForm : UserControl
         {
             Text = $"{FontAwesomeIcons.Cancel}  إلغاء",
             Font = ArabicFont12,
-            ForeColor = DesignTokens.TextPrimaryColor,
-            BackColor = DesignTokens.BorderColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
+            BackColor = DesignTokens.Colors.Border,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(140, 40),
             Location = new Point(370, 220),
@@ -934,7 +946,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.PrinterError,
             Font = IconFont48,
-            ForeColor = DesignTokens.WarningColor,
+            ForeColor = DesignTokens.Colors.Warning,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -945,7 +957,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "فشلت الطباعة",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.WarningColor,
+            ForeColor = DesignTokens.Colors.Warning,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -955,7 +967,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "تعذر الاتصال بالطابعة. يمكنك متابعة العمل أو المحاولة لاحقاً.",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -966,20 +978,20 @@ public class PosTerminalForm : UserControl
             Text = $"{FontAwesomeIcons.Print}  إعادة طباعة",
             Font = ArabicFont12,
             ForeColor = Color.White,
-            BackColor = DesignTokens.WarningColor,
+            BackColor = DesignTokens.Colors.Warning,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(160, 40),
             Location = new Point(200, 220),
             Cursor = Cursors.Hand
         };
-        retryBtn.Click += (s, e) => RetryPrintReceipt();
+        retryBtn.Click += (s, e) => _ = RetryPrintReceiptAsync();
 
         var dismissBtn = new Button
         {
             Text = $"{FontAwesomeIcons.Close}  تجاوز",
             Font = ArabicFont12,
-            ForeColor = DesignTokens.TextPrimaryColor,
-            BackColor = DesignTokens.BorderColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
+            BackColor = DesignTokens.Colors.Border,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(140, 40),
             Location = new Point(370, 220),
@@ -1008,7 +1020,7 @@ public class PosTerminalForm : UserControl
         _permissionDeniedOverlay = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(220, DesignTokens.SurfaceColor),
+            BackColor = Color.FromArgb(220, DesignTokens.Colors.Surface),
             Visible = false
         };
 
@@ -1016,7 +1028,7 @@ public class PosTerminalForm : UserControl
         {
             Text = FontAwesomeIcons.Lock,
             Font = IconFont48,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 80,
             TextAlign = ContentAlignment.MiddleCenter,
@@ -1027,7 +1039,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "ليست لديك صلاحية",
             Font = ArabicFont16,
-            ForeColor = DesignTokens.ErrorColor,
+            ForeColor = DesignTokens.Colors.Error,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -1037,7 +1049,7 @@ public class PosTerminalForm : UserControl
         {
             Text = "ليس لديك الصلاحية الكافية لإتمام هذه العملية. يرجى التواصل مع مدير النظام.",
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -1048,7 +1060,7 @@ public class PosTerminalForm : UserControl
             Text = $"{FontAwesomeIcons.Close}  إغلاق",
             Font = ArabicFont12,
             ForeColor = Color.White,
-            BackColor = DesignTokens.PrimaryColor,
+            BackColor = DesignTokens.Colors.Primary,
             FlatStyle = FlatStyle.Flat,
             Size = new Size(140, 38),
             Location = new Point(250, 260),
@@ -1072,7 +1084,7 @@ public class PosTerminalForm : UserControl
         {
             Text = $"{title}:  {value}",
             Font = DesignTokens.Typography.Table,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Location = new Point(10, top),
             Size = new Size(420, 24),
             TextAlign = ContentAlignment.MiddleRight
@@ -1091,7 +1103,7 @@ public class PosTerminalForm : UserControl
             Size = new Size(110, 32),
             Dock = dock,
             Cursor = Cursors.Hand,
-            Margin = new Padding(DesignTokens.SpacingXS, 0, DesignTokens.SpacingXS, 0),
+            Margin = new Padding(DesignTokens.Spacing.Micro, 0, DesignTokens.Spacing.Micro, 0),
             UseVisualStyleBackColor = false,
             Enabled = false
         };
@@ -1111,7 +1123,7 @@ public class PosTerminalForm : UserControl
             Cursor = Cursors.Hand,
             UseVisualStyleBackColor = false,
             Enabled = enabled,
-            Margin = new Padding(DesignTokens.SpacingXS, 0, DesignTokens.SpacingXS, 0)
+            Margin = new Padding(DesignTokens.Spacing.Micro, 0, DesignTokens.Spacing.Micro, 0)
         };
     }
 
@@ -1168,7 +1180,7 @@ public class PosTerminalForm : UserControl
                 _customerButton.Enabled = true;
                 _searchTextBox.Enabled = true;
                 _statusBarLabel.Text = $"🛒   {_saleItems.Count} أصناف — {CalculateTotal():N3} JOD";
-                _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                 break;
 
             case PosState.LoadingProduct:
@@ -1181,7 +1193,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
                 _statusBarLabel.Text = "⏳   جاري تحميل المنتج...";
-                _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
                 break;
 
             case PosState.ProductNotFound:
@@ -1194,7 +1206,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = hasItems;
                 _searchTextBox.Enabled = true;
                 _statusBarLabel.Text = "⚠️   المنتج غير موجود";
-                _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
                 break;
 
             case PosState.OutOfStock:
@@ -1207,7 +1219,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = hasItems;
                 _searchTextBox.Enabled = true;
                 _statusBarLabel.Text = "⚠️   المنتج غير متوفر";
-                _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
                 _autoDismissTimer.Interval = 2000;
                 _autoDismissTimer.Start();
                 break;
@@ -1218,7 +1230,7 @@ public class PosTerminalForm : UserControl
                 _cardPaymentButton.Enabled = true;
                 _searchTextBox.Enabled = false;
                 _statusBarLabel.Text = "💰   إدخال الخصم...";
-                _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
                 break;
 
             case PosState.HoldSale:
@@ -1229,7 +1241,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
                 _statusBarLabel.Text = "⏸   جاري تعليق الفاتورة...";
-                _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
                 break;
 
             case PosState.RetrieveSale:
@@ -1240,7 +1252,7 @@ public class PosTerminalForm : UserControl
                 _cancelButton.Enabled = false;
                 _searchTextBox.Enabled = false;
                 _statusBarLabel.Text = "📂   جاري استرجاع الفاتورة...";
-                _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
                 break;
 
             case PosState.Payment:
@@ -1252,7 +1264,7 @@ public class PosTerminalForm : UserControl
                 _discountButton.Enabled = false;
                 _searchTextBox.Enabled = false;
                 _statusBarLabel.Text = "💳   جاري معالجة الدفع...";
-                _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
                 break;
 
             case PosState.PaymentSuccess:
@@ -1268,7 +1280,7 @@ public class PosTerminalForm : UserControl
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
                 _statusBarLabel.Text = "✅   تم الدفع بنجاح!";
-                _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                 _autoDismissTimer.Interval = 3000;
                 _autoDismissTimer.Start();
                 break;
@@ -1280,7 +1292,7 @@ public class PosTerminalForm : UserControl
                 _cashPaymentButton.Enabled = true;
                 _cardPaymentButton.Enabled = true;
                 _statusBarLabel.Text = "❌   فشلت عملية الدفع";
-                _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
                 break;
 
             case PosState.PrinterFailure:
@@ -1290,7 +1302,7 @@ public class PosTerminalForm : UserControl
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
                 _statusBarLabel.Text = "🖨️   فشلت الطباعة — تحقق من الطابعة";
-                _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
                 break;
 
             case PosState.PermissionDenied:
@@ -1300,7 +1312,7 @@ public class PosTerminalForm : UserControl
                 _cashPaymentButton.Enabled = false;
                 _cardPaymentButton.Enabled = false;
                 _statusBarLabel.Text = "🔒   ليست لديك صلاحية";
-                _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
                 break;
         }
 
@@ -1329,19 +1341,19 @@ public class PosTerminalForm : UserControl
         {
             case Keys.F2:
                 if (_saleItems.Count > 0 && _currentState == PosState.ActiveSale)
-                    InitiatePayment("Cash");
+                    _ = InitiatePaymentAsync("Cash");
                 break;
             case Keys.F3:
                 if (_saleItems.Count > 0 && _currentState == PosState.ActiveSale)
-                    InitiatePayment("Card");
+                    _ = InitiatePaymentAsync("Card");
                 break;
             case Keys.F4:
                 if (_saleItems.Count > 0 && _currentState == PosState.ActiveSale)
-                    InitiateHold();
+                    _ = InitiateHoldAsync();
                 break;
             case Keys.F5:
                 if (_saleItems.Count > 0 && (_currentState == PosState.ActiveSale || _currentState == PosState.EmptySale))
-                    CancelSale();
+                    _ = CancelSaleAsync();
                 break;
             case Keys.F8:
                 _searchTextBox.Focus();
@@ -1414,7 +1426,7 @@ public class PosTerminalForm : UserControl
             return;
 
         _statusBarLabel.Text = "🖨️   جاري طباعة الإيصال...";
-        _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+        _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
 
         bool receiptSucceeded = false;
 
@@ -1428,13 +1440,13 @@ public class PosTerminalForm : UserControl
                 {
                     _receiptPrinted = true;
                     _statusBarLabel.Text = "✅   تمت طباعة الإيصال بنجاح";
-                    _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                    _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                 }
                 else
                 {
                     _receiptPrinted = false;
                     _statusBarLabel.Text = "🖨️⚠️   فشلت طباعة الإيصال — تحقق من الطابعة";
-                    _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+                    _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
 
                     // Only show printer failure if we're still in PaymentSuccess
                     if (_currentState == PosState.PaymentSuccess)
@@ -1449,20 +1461,20 @@ public class PosTerminalForm : UserControl
                 if (receiptSucceeded)
                 {
                     _statusBarLabel.Text = "🖨️🍳   جاري طباعة تذاكر المطبخ...";
-                    _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+                    _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
 
                     var kitchenSuccess = await _printerManagementService.PrintKitchenTicketsAsync(_currentSaleId);
 
                     if (kitchenSuccess)
                     {
                         _statusBarLabel.Text = "✅   تمت طباعة الإيصال وتذاكر المطبخ";
-                        _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                        _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                     }
                     else
                     {
                         // Kitchen tickets failed but receipt succeeded — just log, don't block
                         _statusBarLabel.Text = "✅   تمت طباعة الإيصال (بعض تذاكر المطبخ لم تطبع)";
-                        _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                        _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                         System.Diagnostics.Debug.WriteLine(
                             $"[PosPrinter] Some kitchen tickets failed for sale {_currentSaleId}");
                     }
@@ -1473,14 +1485,14 @@ public class PosTerminalForm : UserControl
                 // No printer management service available — printing is optional
                 _receiptPrinted = true;
                 _statusBarLabel.Text = "✅   تم الدفع (لا توجد طابعة إيصالات)";
-                _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
             }
         }
         catch (Exception ex)
         {
             _receiptPrinted = false;
             _statusBarLabel.Text = "🖨️❌   خطأ في الطباعة";
-            _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
             System.Diagnostics.Debug.WriteLine(
                 $"[PosPrinter] PrintReceiptForCurrentSaleAsync failed: {ex.Message}");
 
@@ -1495,11 +1507,18 @@ public class PosTerminalForm : UserControl
     /// <summary>
     /// Retries printing the receipt. Called from the PrinterFailure overlay retry button.
     /// </summary>
-    private async void RetryPrintReceipt()
+    private async Task RetryPrintReceiptAsync()
     {
-        SetState(PosState.PaymentSuccess); // Go back to payment success state for the attempt
-        _autoDismissTimer.Stop();
-        await PrintReceiptForCurrentSaleAsync();
+        try
+        {
+            SetState(PosState.PaymentSuccess);
+            _autoDismissTimer.Stop();
+            await PrintReceiptForCurrentSaleAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] RetryPrintReceiptAsync failed: {ex}");
+        }
     }
 
     /// <summary>
@@ -1511,8 +1530,8 @@ public class PosTerminalForm : UserControl
             ? $" {FontAwesomeIcons.Retrieve}  معلقات ({count})"
             : $" {FontAwesomeIcons.Retrieve}  استرجاع";
         _retrieveButton.BackColor = count > 0
-            ? DesignTokens.SecondaryColor
-            : DesignTokens.PrimaryDarkColor;
+            ? DesignTokens.Colors.Success
+            : DesignTokens.Colors.PrimaryHover;
     }
 
     /// <summary>
@@ -1549,7 +1568,7 @@ public class PosTerminalForm : UserControl
 
             BuildCategoryButtons();
         }
-        catch { /* silent */ }
+        catch { System.Diagnostics.Trace.TraceWarning("[POS] Failed to load categories from server, using sample data"); }
     }
 
     public async Task LoadProductsAsync()
@@ -1572,7 +1591,7 @@ public class PosTerminalForm : UserControl
         catch
         {
             _statusBarLabel.Text = "⚠️   فشل تحميل المنتجات";
-            _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
         }
         finally
         {
@@ -1618,8 +1637,9 @@ public class PosTerminalForm : UserControl
                 }
             });
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] Barcode scan handler failed: {ex}");
         }
     }
 
@@ -1645,11 +1665,11 @@ public class PosTerminalForm : UserControl
             AutoSize = true,
             Height = 34,
             FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(DesignTokens.SpacingXS, 0, DesignTokens.SpacingXS, 0),
+            Margin = new Padding(DesignTokens.Spacing.Micro, 0, DesignTokens.Spacing.Micro, 0),
             Cursor = Cursors.Hand,
             Tag = categoryId,
-            BackColor = categoryId == null ? DesignTokens.PrimaryColor : DesignTokens.SurfaceColor,
-            ForeColor = categoryId == null ? Color.White : DesignTokens.TextPrimaryColor,
+            BackColor = categoryId == null ? DesignTokens.Colors.Primary : DesignTokens.Colors.Surface,
+            ForeColor = categoryId == null ? Color.White : DesignTokens.Colors.TextPrimary,
             UseVisualStyleBackColor = false
         };
 
@@ -1670,8 +1690,8 @@ public class PosTerminalForm : UserControl
             if (ctrl is Button btn)
             {
                 var isSel = (Guid?)btn.Tag == _selectedCategoryId;
-                btn.BackColor = isSel ? DesignTokens.PrimaryColor : DesignTokens.SurfaceColor;
-                btn.ForeColor = isSel ? Color.White : DesignTokens.TextPrimaryColor;
+                btn.BackColor = isSel ? DesignTokens.Colors.Primary : DesignTokens.Colors.Surface;
+                btn.ForeColor = isSel ? Color.White : DesignTokens.Colors.TextPrimary;
             }
         }
     }
@@ -1739,7 +1759,7 @@ public class PosTerminalForm : UserControl
         var panel = new Panel
         {
             Size = new Size(450, 200),
-            BackColor = DesignTokens.BackgroundColor,
+            BackColor = DesignTokens.Colors.Background,
             Margin = new Padding(30)
         };
 
@@ -1747,7 +1767,7 @@ public class PosTerminalForm : UserControl
         {
             Text = icon,
             Font = IconFont48,
-            ForeColor = DesignTokens.TextHintColor,
+            ForeColor = DesignTokens.Colors.TextHint,
             Dock = DockStyle.Top,
             Height = 70,
             TextAlign = ContentAlignment.MiddleCenter
@@ -1756,7 +1776,7 @@ public class PosTerminalForm : UserControl
         {
             Text = title,
             Font = ArabicFont16,
-            ForeColor = DesignTokens.TextPrimaryColor,
+            ForeColor = DesignTokens.Colors.TextPrimary,
             Dock = DockStyle.Top,
             Height = 36,
             TextAlign = ContentAlignment.MiddleCenter
@@ -1765,7 +1785,7 @@ public class PosTerminalForm : UserControl
         {
             Text = subtitle,
             Font = ArabicFont10,
-            ForeColor = DesignTokens.TextSecondaryColor,
+            ForeColor = DesignTokens.Colors.TextSecondary,
             Dock = DockStyle.Top,
             Height = 30,
             TextAlign = ContentAlignment.MiddleCenter
@@ -1780,9 +1800,9 @@ public class PosTerminalForm : UserControl
         var card = new Panel
         {
             Size = new Size(150, 140),
-            BackColor = DesignTokens.SurfaceColor,
-            Margin = new Padding(DesignTokens.SpacingXS),
-            Padding = new Padding(DesignTokens.SpacingSM),
+            BackColor = DesignTokens.Colors.Surface,
+            Margin = new Padding(DesignTokens.Spacing.Micro),
+            Padding = new Padding(DesignTokens.Spacing.Small),
             Cursor = isOutOfStock ? Cursors.No : Cursors.Hand,
             BorderStyle = BorderStyle.FixedSingle,
             Tag = product
@@ -1792,7 +1812,7 @@ public class PosTerminalForm : UserControl
         {
             Text = product.ArabicName,
             Font = ArabicFont10,
-            ForeColor = isOutOfStock ? DesignTokens.TextHintColor : DesignTokens.TextPrimaryColor,
+            ForeColor = isOutOfStock ? DesignTokens.Colors.TextHint : DesignTokens.Colors.TextPrimary,
             Location = new Point(8, 8),
             Size = new Size(130, 38),
             TextAlign = ContentAlignment.TopRight,
@@ -1804,7 +1824,7 @@ public class PosTerminalForm : UserControl
         {
             Text = $"{product.SellingPrice:N3} JOD",
             Font = DesignTokens.Typography.CardTitle,
-            ForeColor = isOutOfStock ? DesignTokens.DisabledColor : DesignTokens.PrimaryColor,
+            ForeColor = isOutOfStock ? DesignTokens.Colors.Disabled : DesignTokens.Colors.Primary,
             Location = new Point(8, 52),
             Size = new Size(130, 24),
             TextAlign = ContentAlignment.MiddleCenter
@@ -1816,7 +1836,7 @@ public class PosTerminalForm : UserControl
                 ? $"{FontAwesomeIcons.Warning}  غير متوفر"
                 : $"المخزون: {product.CurrentStock:N0}",
             Font = DesignTokens.Typography.Caption,
-            ForeColor = isOutOfStock ? DesignTokens.ErrorColor : DesignTokens.SuccessColor,
+            ForeColor = isOutOfStock ? DesignTokens.Colors.Error : DesignTokens.Colors.Success,
             Location = new Point(8, 80),
             Size = new Size(130, 20),
             TextAlign = ContentAlignment.MiddleCenter,
@@ -1827,7 +1847,7 @@ public class PosTerminalForm : UserControl
         {
             Text = product.Barcode ?? "",
             Font = DesignTokens.Typography.Caption,
-            ForeColor = DesignTokens.TextHintColor,
+            ForeColor = DesignTokens.Colors.TextHint,
             Location = new Point(8, 104),
             Size = new Size(130, 18),
             TextAlign = ContentAlignment.MiddleCenter,
@@ -2166,7 +2186,7 @@ public class PosTerminalForm : UserControl
             if (_saleService != null && _currentSaleId != Guid.Empty)
             {
                 try { await _saleService.RemoveItemAsync(_currentSaleId, itemToRemove.Id ?? Guid.Empty); }
-                catch { /* offline resilience */ }
+                catch { System.Diagnostics.Trace.TraceWarning("[POS] Failed to remove item from service (offline)"); }
             }
         };
         menu.Items.Add(deleteItem);
@@ -2243,7 +2263,7 @@ public class PosTerminalForm : UserControl
         try
         {
             _statusBarLabel.Text = "💰   جاري فتح درج النقود...";
-            _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
 
             if (_printerManagementService != null)
             {
@@ -2251,24 +2271,24 @@ public class PosTerminalForm : UserControl
                 if (success)
                 {
                     _statusBarLabel.Text = "✅   تم فتح درج النقود";
-                    _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                    _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
                 }
                 else
                 {
                     _statusBarLabel.Text = "⚠️   فشل فتح درج النقود";
-                    _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+                    _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
                 }
             }
             else
             {
                 _statusBarLabel.Text = "✅   تم فتح درج النقود (محاكاة)";
-                _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+                _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
             }
         }
         catch (Exception ex)
         {
             _statusBarLabel.Text = "❌   خطأ في فتح درج النقود";
-            _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
             System.Diagnostics.Debug.WriteLine($"[CashDrawer] Error: {ex.Message}");
         }
 
@@ -2280,8 +2300,9 @@ public class PosTerminalForm : UserControl
     private async Task<bool> CheckPermissionAsync(string permission)
     {
         if (_currentUserId == Guid.Empty) return true;
-        if (AppServiceProvider.Provider == null) return true;
-        var authService = AppServiceProvider.Provider.GetService(typeof(IAuthService)) as IAuthService;
+        using var scope = AppServiceProvider.Provider?.CreateScope();
+        if (scope == null) return true;
+        var authService = scope.ServiceProvider.GetService(typeof(IAuthService)) as IAuthService;
         if (authService == null) return true;
         return await authService.HasPermissionAsync(_currentUserId, permission);
     }
@@ -2296,7 +2317,7 @@ public class PosTerminalForm : UserControl
             // Use Font Awesome icon for delete button
             e.Paint(e.CellBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
             TextRenderer.DrawText(e.Graphics!, FontAwesomeIcons.Delete, IconFont12,
-                e.CellBounds, DesignTokens.ErrorColor,
+                e.CellBounds, DesignTokens.Colors.Error,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             e.Handled = true;
         }
@@ -2333,26 +2354,33 @@ public class PosTerminalForm : UserControl
     // Payment
     // ========================================================================
 
-    private async void InitiatePayment(string method)
+    private async Task InitiatePaymentAsync(string method)
     {
-        if (_saleItems.Count == 0) return;
-        if (_currentState != PosState.ActiveSale) return;
-
-        if (!await CheckPermissionAsync("Sell"))
+        try
         {
-            SetState(PosState.PermissionDenied);
-            return;
-        }
+            if (_saleItems.Count == 0) return;
+            if (_currentState != PosState.ActiveSale) return;
 
-        SetState(PosState.Payment);
-        RequestPayment?.Invoke(this, new PaymentRequest(_currentSaleId, CalculateTotal(), method, null));
+            if (!await CheckPermissionAsync("Sell"))
+            {
+                SetState(PosState.PermissionDenied);
+                return;
+            }
+
+            SetState(PosState.Payment);
+            RequestPayment?.Invoke(this, new PaymentRequest(_currentSaleId, CalculateTotal(), method, null));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] InitiatePaymentAsync failed: {ex}");
+        }
     }
 
     // ========================================================================
     // Hold Sale
     // ========================================================================
 
-    private async void InitiateHold()
+    private async Task InitiateHoldAsync()
     {
         if (_saleItems.Count == 0) return;
         if (_currentState != PosState.ActiveSale) return;
@@ -2379,26 +2407,28 @@ public class PosTerminalForm : UserControl
 
         try
         {
+            var heldId = Guid.Empty;
             if (_saleService != null)
             {
-                var heldId = await _saleService.HoldSaleAsync(_currentSaleId, reason);
+                heldId = await _saleService.HoldSaleAsync(_currentSaleId, reason);
             }
 
             // Clear the current sale
             var total = CalculateTotal();
 
             // Add to held sales cache
-            _heldSalesCache.Add(new HeldSaleDto(_currentSaleId, DateTime.Now, reason, total));
+            _heldSalesCache.Add(new HeldSaleDto(heldId, DateTime.Now, reason, total));
             UpdateRetrieveButton(_heldSalesCache.Count);
 
             ClearCurrentSale();
             _statusBarLabel.Text = $"⏸  تم تعليق الفاتورة ({(reason.Length > 0 ? reason : "بدون سبب")})";
-            _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] InitiateHoldAsync failed: {ex}");
             _statusBarLabel.Text = "⚠️   فشل تعليق الفاتورة";
-            _statusBarLabel.ForeColor = DesignTokens.ErrorColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Error;
             SetState(PosState.ActiveSale);
         }
     }
@@ -2423,7 +2453,7 @@ public class PosTerminalForm : UserControl
                     _heldSalesCache = heldSales;
                 }
             }
-            catch { /* use cache */ }
+            catch { System.Diagnostics.Trace.TraceWarning("[POS] Failed to load held sales, using cache"); }
 
             // Convert to HeldSaleEntry list for the dialog
             var entries = _heldSalesCache
@@ -2439,7 +2469,7 @@ public class PosTerminalForm : UserControl
         if (entries.Count == 0)
         {
             _statusBarLabel.Text = "📂   لا توجد فواتير معلقة";
-            _statusBarLabel.ForeColor = DesignTokens.InfoColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Info;
             return;
         }
 
@@ -2452,7 +2482,7 @@ public class PosTerminalForm : UserControl
         if (retrievedId.HasValue)
         {
             _statusBarLabel.Text = "📂   تم استرجاع الفاتورة";
-            _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
 
             // Remove from cache
             _heldSalesCache.RemoveAll(h => h.Id == retrievedId.Value);
@@ -2470,58 +2500,67 @@ public class PosTerminalForm : UserControl
     // Cancel Sale
     // ========================================================================
 
-    private async void CancelSale()
+    private async Task CancelSaleAsync()
     {
-        if (_currentState != PosState.ActiveSale && _currentState != PosState.EmptySale)
-            return;
-
-        if (_saleItems.Count == 0 && _currentSaleId == Guid.Empty)
-            return;
-
-        if (!await CheckPermissionAsync("CancelInvoice"))
+        try
         {
-            SetState(PosState.PermissionDenied);
-            return;
+            if (_currentState != PosState.ActiveSale && _currentState != PosState.EmptySale)
+                return;
+
+            if (_saleItems.Count == 0 && _currentSaleId == Guid.Empty)
+                return;
+
+            if (!await CheckPermissionAsync("CancelInvoice"))
+            {
+                SetState(PosState.PermissionDenied);
+                return;
+            }
+
+            // Confirm cancellation
+            var confirmResult = RtlMessageBox.Show(
+                "هل أنت متأكد من إلغاء الفاتورة الحالية؟",
+                "إلغاء الفاتورة",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2,
+                MessageBoxOptions.RtlReading);
+
+            if (confirmResult != DialogResult.Yes) return;
+
+            ClearCurrentSale();
+            _statusBarLabel.Text = "🗑   تم إلغاء الفاتورة";
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
         }
-
-        // Confirm cancellation
-        var confirmResult = RtlMessageBox.Show(
-            "هل أنت متأكد من إلغاء الفاتورة الحالية؟",
-            "إلغاء الفاتورة",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Warning,
-            MessageBoxDefaultButton.Button2,
-            MessageBoxOptions.RtlReading);
-
-        if (confirmResult != DialogResult.Yes) return;
-
-        ClearCurrentSale();
-        _statusBarLabel.Text = "🗑   تم إلغاء الفاتورة";
-        _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] CancelSaleAsync failed: {ex}");
+        }
     }
 
     // ========================================================================
     // Discount Dialog
     // ========================================================================
 
-    private async void ShowDiscountDialog()
+    private async Task ShowDiscountDialogAsync()
     {
-        if (_saleItems.Count == 0) return;
-        if (_currentState != PosState.ActiveSale) return;
-
-        if (!await CheckPermissionAsync("ApplyDiscount"))
+        try
         {
-            SetState(PosState.PermissionDenied);
-            return;
-        }
+            if (_saleItems.Count == 0) return;
+            if (_currentState != PosState.ActiveSale) return;
 
-        SetState(PosState.DiscountDialog);
+            if (!await CheckPermissionAsync("ApplyDiscount"))
+            {
+                SetState(PosState.PermissionDenied);
+                return;
+            }
 
-        // Simple discount dialog using input box
-        var discountStr = Microsoft.VisualBasic.Interaction.InputBox(
-            "أدخل قيمة الخصم:", "خصم", "0", -1, -1);
+            SetState(PosState.DiscountDialog);
 
-        if (decimal.TryParse(discountStr, out var discountAmount) && discountAmount > 0)
+            // Simple discount dialog using input box
+            var discountStr = Microsoft.VisualBasic.Interaction.InputBox(
+                "أدخل قيمة الخصم:", "خصم", "0", -1, -1);
+
+            if (decimal.TryParse(discountStr, out var discountAmount) && discountAmount > 0)
         {
             if (discountAmount > CalculateTotal())
                 discountAmount = CalculateTotal();
@@ -2532,10 +2571,15 @@ public class PosTerminalForm : UserControl
             RefreshItemsGrid();
             RefreshTotals();
             _statusBarLabel.Text = $"💰   تم تطبيق خصم: {discountAmount:N3} JOD";
-            _statusBarLabel.ForeColor = DesignTokens.WarningColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Warning;
         }
 
         SetState(PosState.ActiveSale);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[PosTerminalForm] ShowDiscountDialogAsync failed: {ex}");
+        }
     }
 
     // ========================================================================
@@ -2556,7 +2600,7 @@ public class PosTerminalForm : UserControl
             MinimizeBox = false,
             StartPosition = FormStartPosition.CenterParent,
             ClientSize = new(340, 200),
-            Font = DesignTokens.DefaultFont
+            Font = DesignTokens.Typography.Body
         };
 
         // Product name label
@@ -2565,7 +2609,7 @@ public class PosTerminalForm : UserControl
             Text = $"الكمية للمنتج: {productName}",
             Location = new(12, 12),
             AutoSize = true,
-            Font = DesignTokens.DefaultFont
+            Font = DesignTokens.Typography.Body
         });
 
         // Quantity input
@@ -2573,7 +2617,7 @@ public class PosTerminalForm : UserControl
         {
             Location = new(12, 38),
             Width = 100,
-            Font = DesignTokens.DefaultFont,
+            Font = DesignTokens.Typography.Body,
             TextAlign = HorizontalAlignment.Center
         };
         dialog.Controls.Add(txtQuantity);
@@ -2584,7 +2628,7 @@ public class PosTerminalForm : UserControl
         {
             Location = new(120, 38),
             Width = 100,
-            Font = DesignTokens.DefaultFont,
+            Font = DesignTokens.Typography.Body,
             DropDownStyle = ComboBoxStyle.DropDownList,
             RightToLeft = RightToLeft.Yes
         };
@@ -2638,14 +2682,16 @@ public class PosTerminalForm : UserControl
         if (!string.IsNullOrWhiteSpace(customerName))
         {
             _statusBarLabel.Text = $"👤   تم تعيين العميل: {customerName}";
-            _statusBarLabel.ForeColor = DesignTokens.SuccessColor;
+            _statusBarLabel.ForeColor = DesignTokens.Colors.Success;
         }
     }
 
+    private static POS.Domain.Interfaces.ISoundService? _soundService;
+
     private static void PlaySound(SoundEvent soundEvent)
     {
-        var soundService = AppServiceProvider.Provider?.GetService<POS.Domain.Interfaces.ISoundService>();
-        soundService?.Play(soundEvent);
+        _soundService ??= AppServiceProvider.Provider?.GetService<POS.Domain.Interfaces.ISoundService>();
+        _soundService?.Play(soundEvent);
     }
 }
 

@@ -391,6 +391,6 @@ public class InventoryForm : UserControl
                 }
             }
         }
-        catch { /* silent */ }
+        catch { System.Diagnostics.Trace.TraceError("[Inventory] Failed to load movements"); }
     }
 }

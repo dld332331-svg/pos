@@ -356,7 +356,7 @@ public class PrinterManagementForm : UserControl
         menu.Items.Add(editItem);
 
         var testConnItem = new ToolStripMenuItem("🔌 اختبار الاتصال");
-        testConnItem.Click += (s, e) => TestPrinterConnectionQuick(printer);
+        testConnItem.Click += (s, e) => _ = TestPrinterConnectionQuickAsync(printer);
         menu.Items.Add(testConnItem);
 
         var testPrintItem = new ToolStripMenuItem("🖨 اختبار الطباعة");
@@ -536,8 +536,9 @@ public class PrinterManagementForm : UserControl
                     {
                         if (btnTestConnection.IsDisposed) return;
                         btnTestConnection.IsLoading = false;
-                        _lblConnectionStatus!.Text = $"❌ خطأ: {ex.Message}";
+                        _lblConnectionStatus!.Text = "❌ خطأ في الاتصال بالطابعة";
                         _lblConnectionStatus!.ForeColor = DesignTokens.Colors.Error;
+                        System.Diagnostics.Trace.TraceError($"[PrinterManagementForm] TestConnection failed: {ex}");
                     });
                 }
             });
@@ -604,7 +605,8 @@ public class PrinterManagementForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[PrinterManagementForm] SavePrinter failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء حفظ الطابعة", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
         dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
@@ -754,7 +756,8 @@ public class PrinterManagementForm : UserControl
             }
             catch (Exception ex)
             {
-                RtlMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                System.Diagnostics.Trace.TraceError($"[PrinterManagementForm] SavePrinterStation failed: {ex}");
+                RtlMessageBox.Show("حدث خطأ أثناء حفظ محطة الطباعة", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
         dialog.AddAction("إلغاء", (s, e) => dialog.Close(), false);
@@ -768,26 +771,33 @@ public class PrinterManagementForm : UserControl
     /// Quick connection test from the grid context menu.
     /// Shows the status in a message box.
     /// </summary>
-    private async void TestPrinterConnectionQuick(PrinterEntry printer)
+    private async Task TestPrinterConnectionQuickAsync(PrinterEntry printer)
     {
-        var status = await TestPrinterConnectionAsync(
-            printer.Name, printer.Type, printer.Connection, printer.Address, printer.BaudRate);
-
-        var statusText = status switch
+        try
         {
-            PrinterStatus.Online => "✅ متصل — الطابعة جاهزة",
-            PrinterStatus.Offline => "⚠️ غير متصل",
-            PrinterStatus.Error => "❌ حالة خطأ",
-            PrinterStatus.Printing => "🖨 قيد الطباعة",
-            _ => "⚠️ حالة غير معروفة"
-        };
+            var status = await TestPrinterConnectionAsync(
+                printer.Name, printer.Type, printer.Connection, printer.Address, printer.BaudRate);
 
-        var icon = status == PrinterStatus.Online ? MessageBoxIcon.Information
-                 : status == PrinterStatus.Error ? MessageBoxIcon.Error
-                 : MessageBoxIcon.Warning;
+            var statusText = status switch
+            {
+                PrinterStatus.Online => "✅ متصل — الطابعة جاهزة",
+                PrinterStatus.Offline => "⚠️ غير متصل",
+                PrinterStatus.Error => "❌ حالة خطأ",
+                PrinterStatus.Printing => "🖨 قيد الطباعة",
+                _ => "⚠️ حالة غير معروفة"
+            };
 
-        RtlMessageBox.Show($"الطابعة: {printer.Name}\nالحالة: {statusText}",
-            "اختبار الاتصال", MessageBoxButtons.OK, icon);
+            var icon = status == PrinterStatus.Online ? MessageBoxIcon.Information
+                     : status == PrinterStatus.Error ? MessageBoxIcon.Error
+                     : MessageBoxIcon.Warning;
+
+            RtlMessageBox.Show($"الطابعة: {printer.Name}\nالحالة: {statusText}",
+                "اختبار الاتصال", MessageBoxButtons.OK, icon);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[PrinterManagementForm] TestPrinterConnectionQuickAsync failed: {ex}");
+        }
     }
 
     private void TestPrinter(PrinterEntry printer)

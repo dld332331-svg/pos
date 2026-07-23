@@ -408,7 +408,8 @@ public class StockAdjustmentDialog : Form
         }
         catch (Exception ex)
         {
-            _errorLabel.Text = $"خطأ: {ex.Message}";
+            System.Diagnostics.Trace.TraceError($"[StockAdjustmentDialog] Save failed: {ex}");
+            _errorLabel.Text = "حدث خطأ أثناء تنفيذ العملية";
             SetState(StockAdjustmentState.Error);
         }
         finally

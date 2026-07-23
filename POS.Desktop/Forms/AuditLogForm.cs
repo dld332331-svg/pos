@@ -215,7 +215,7 @@ public class AuditLogForm : UserControl
             Width = 100,
             Height = DesignTokens.ControlHeight.Standard
         };
-        _btnPrevPage.Click += (s, e) => GoToPage(_currentPage - 1);
+        _btnPrevPage.Click += (s, e) => _ = GoToPageAsync(_currentPage - 1);
 
         _btnNextPage = new RtlButton
         {
@@ -225,7 +225,7 @@ public class AuditLogForm : UserControl
             Height = DesignTokens.ControlHeight.Standard,
             Margin = new Padding(DesignTokens.Spacing.Small, 0, 0, 0)
         };
-        _btnNextPage.Click += (s, e) => GoToPage(_currentPage + 1);
+        _btnNextPage.Click += (s, e) => _ = GoToPageAsync(_currentPage + 1);
 
         _lblPageInfo = new Label
         {
@@ -412,19 +412,27 @@ public class AuditLogForm : UserControl
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Trace.TraceError($"[AuditLogForm] LoadPageAsync failed: {ex}");
             SetState(AuditState.Error);
             _logGrid.Rows.Clear();
-            _logGrid.ShowEmptyMessage($"حدث خطأ أثناء التحميل: {ex.Message}");
+            _logGrid.ShowEmptyMessage("حدث خطأ أثناء التحميل");
         }
     }
 
-    private async void GoToPage(int page)
+    private async Task GoToPageAsync(int page)
     {
-        if (page < 1 || _pagedResult == null) return;
-        var totalPages = Math.Max(1, (int)Math.Ceiling((double)_pagedResult.TotalCount / _pageSize));
-        if (page > totalPages) return;
-        _currentPage = page;
-        await LoadPageAsync();
+        try
+        {
+            if (page < 1 || _pagedResult == null) return;
+            var totalPages = Math.Max(1, (int)Math.Ceiling((double)_pagedResult.TotalCount / _pageSize));
+            if (page > totalPages) return;
+            _currentPage = page;
+            await LoadPageAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError($"[AuditLogForm] GoToPageAsync failed: {ex}");
+        }
     }
 
     // --- Cell Formatting ---

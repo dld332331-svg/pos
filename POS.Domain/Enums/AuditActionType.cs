@@ -82,5 +82,8 @@ public enum AuditActionType
     ShiftOpened,
 
     /// <summary>A cash register shift was closed.</summary>
-    ShiftClosed
+    ShiftClosed,
+
+    /// <summary>A purchase order was received.</summary>
+    PurchaseOrderReceived
 }
