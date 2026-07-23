@@ -931,6 +931,7 @@ public class ReturnForm : UserControl
         {
             _lblValidation.Text = "يرجى إدخال رقم الفاتورة";
             _lblValidation.Visible = true;
+            _reasonPanel.Visible = true;
             return;
         }
 

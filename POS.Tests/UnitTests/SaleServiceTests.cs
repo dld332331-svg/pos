@@ -3726,6 +3726,130 @@ public class SaleServiceTests
         result[1].DiscountAmount.Should().Be(10.000m);
         result[1].Name.Should().Be("الخصم الثاني");
     }
+
+    // ========================================================================
+    // GetSaleByInvoiceNumberAsync Tests
+    // ========================================================================
+
+    [Fact]
+    public async Task GetSaleByInvoiceNumberAsync_HappyPath_ReturnsCorrectDto()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var invoiceNumber = "INV-20260719-0015";
+        var sale = CreateActiveSale(saleId);
+        sale.InvoiceNumber = invoiceNumber;
+        sale.SubTotal = 50.000m;
+        sale.TaxAmount = 8.000m;
+        sale.DiscountAmount = 5.000m;
+        sale.TotalAmount = 53.000m;
+        sale.Status = SaleStatus.Completed;
+        sale.CreatedAt = new DateTime(2026, 7, 19, 10, 30, 0, DateTimeKind.Utc);
+
+        var product = CreateTestProduct();
+        var existingSales = new List<Sale> { sale };
+
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product, existingSales: existingSales);
+
+        // Act
+        var result = await service.GetSaleByInvoiceNumberAsync(invoiceNumber);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.SaleId.Should().Be(saleId);
+        result.InvoiceNumber.Should().Be(invoiceNumber);
+        result.SubTotal.Should().Be(50.000m);
+        result.TaxAmount.Should().Be(8.000m);
+        result.DiscountAmount.Should().Be(5.000m);
+        result.TotalAmount.Should().Be(53.000m);
+        result.Status.Should().Be("Completed");
+        result.CreatedAt.Should().Be(sale.CreatedAt);
+    }
+
+    [Fact]
+    public async Task GetSaleByInvoiceNumberAsync_EmptyInvoice_ReturnsNull()
+    {
+        // Arrange
+        var product = CreateTestProduct();
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product);
+
+        // Act & Assert
+        (await service.GetSaleByInvoiceNumberAsync("")).Should().BeNull();
+        (await service.GetSaleByInvoiceNumberAsync("   ")).Should().BeNull();
+        (await service.GetSaleByInvoiceNumberAsync(null!)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetSaleByInvoiceNumberAsync_NotFound_ReturnsNull()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        sale.InvoiceNumber = "INV-20260719-0001";
+
+        var product = CreateTestProduct();
+        var existingSales = new List<Sale> { sale };
+
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product, existingSales: existingSales);
+
+        // Act — search for a different invoice number
+        var result = await service.GetSaleByInvoiceNumberAsync("INV-20260719-9999");
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetSaleByInvoiceNumberAsync_PartialMatch_ReturnsSale()
+    {
+        // Arrange — uses Contains() internally, so partial match should work
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        sale.InvoiceNumber = "INV-20260719-0001";
+        sale.SubTotal = 20.000m;
+        sale.TaxAmount = 3.200m;
+        sale.TotalAmount = 23.200m;
+        sale.Status = SaleStatus.Completed;
+
+        var product = CreateTestProduct();
+        var existingSales = new List<Sale> { sale };
+
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product, existingSales: existingSales);
+
+        // Act — partial match on the date portion
+        var result = await service.GetSaleByInvoiceNumberAsync("20260719");
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.SaleId.Should().Be(saleId);
+    }
+
+    [Fact]
+    public async Task GetSaleByInvoiceNumberAsync_MultipleMatches_ReturnsFirst()
+    {
+        // Arrange
+        var sale1Id = Guid.NewGuid();
+        var sale2Id = Guid.NewGuid();
+        var sale1 = CreateActiveSale(sale1Id);
+        sale1.InvoiceNumber = "INV-20260719-0001";
+        sale1.TotalAmount = 100.000m;
+        var sale2 = CreateActiveSale(sale2Id);
+        sale2.InvoiceNumber = "INV-20260719-0002";
+        sale2.TotalAmount = 200.000m;
+
+        var product = CreateTestProduct();
+        var existingSales = new List<Sale> { sale1, sale2 };
+
+        var (service, _, _) = BuildServiceWithMocks(sale: null, product, existingSales: existingSales);
+
+        // Act — match both sales by the date portion
+        var result = await service.GetSaleByInvoiceNumberAsync("20260719");
+
+        // Assert — FirstOrDefault returns the first sale
+        result.Should().NotBeNull();
+        result!.SaleId.Should().Be(sale1Id);
+        result.TotalAmount.Should().Be(100.000m);
+    }
 }
 
 
