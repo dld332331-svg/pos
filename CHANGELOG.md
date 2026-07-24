@@ -360,7 +360,7 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | **All 20 services** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** | **20/20** | **20/20** |
 | | | | | | | | |
 | **POS.Domain branch** | — | — | — | — | 69.9% | **100.0%** | **100.0%** |
-| **POS.Application branch** | — | — | — | 83.2% | 83.2% | **87.2%** | **88.9%*** |
+| **POS.Application branch** | — | — | — | 83.2% | 83.2% | **87.2%** | **88.9%** |
 | **POS.Reporting branch** | — | — | — | — | 70.9% | **76.6%** | **93.8%** |
 | **POS.Infrastructure branch** | — | — | — | — | ~50% | **54.6%** | **55.4%** |
 | **Overall branch coverage** | — | — | — | ~73% | 75.5% | **76.8%** | **80.3%** |
