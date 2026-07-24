@@ -5,7 +5,7 @@
 **Stack:** .NET 10, WinForms, EF Core 10, SQL Server, ESC/POS  
 **Specification:** POS_EN.md — Unified Engineering Spec v2.0 (2135 lines)  
 **Current build:** 0 errors, 0 warnings  
-**Current tests:** **1312/1312 pass (Release mode ✅)**  
+**Current tests:** **1316/1316 pass (Release mode ✅)**  
 **Coverage:** Overall **84.6% line / 76.8% branch** (Coverlet)  
   - POS.Application: 86.3% line / 87.2% branch  
   - POS.Domain: 79.6% line / **100.0% branch**  
@@ -16,14 +16,14 @@
 
 ## [v7] — 2026-07-24 — CI/CD Pipeline & Test Infrastructure
 
-**Test count:** 1265 → **1312** (+47)  
-**New additions:** GitHub Actions CI/CD, NuGet caching, coverage thresholds, MapSaleItemToDto direct tests
+**Test count:** 1265 → **1316** (+51)  
+**New additions:** GitHub Actions CI/CD, NuGet caching, coverage thresholds, CI fix, MapSaleItemToDto direct tests, ReportExporter tests, BackupService retention policy tests
 
 ### Added
 
 #### CI/CD Pipeline (`.github/workflows/ci.yml`)
 - **GitHub Actions workflow** triggered on push/PR to `main`
-- **.NET 10 preview SDK** via `setup-dotnet@v4` with `quality: preview` channel
+- **.NET 10 preview SDK** via `setup-dotnet@v4` with `include-prerelease: true` (fixed: was `quality: preview` — invalid input causing immediate exit code 1)
 - **NuGet package caching** via `actions/cache@v4` — keyed on `**/*.csproj`, `**/*.props`, `**/*.targets` hashes
 - **Two-phase build** — Release mode (zero-warnings policy) then Debug mode (coverage instrumentation)
 - **Release mode validation** — `TreatWarningsAsErrors` ensures zero warnings before merge
@@ -40,6 +40,12 @@
 - 5 tests cover all null-coalescing branches: Symbol → ArabicSymbol → Name fallback, null UnitOfMeasureId, null navigation property
 - Branch coverage: **8.3% → 100%** (12/12 branches)
 
+#### Tests — BackupService Retention Policy (4 new)
+- `CreateBackupAsync_ExceedsCountRetention_EnforcesRetentionByCount` — 35 records (exceeds 30 max), verifies count-based cleanup
+- `CreateBackupAsync_UnderCountRetention_SkipsRetention` — 25 records (under 30), verifies retention NOT triggered
+- `CreateBackupAsync_RecordsExceedAgeRetention_EnforcesRetentionByAge` — 5 records 100+ days old (exceeds 90-day cutoff), verifies age-based cleanup
+- `CreateBackupAsync_RetentionGetAllThrows_OuterCatchLogsError` — `GetAllAsync` throws during retention, verifies error logged and backup still succeeds
+
 #### POS.Reporting Exporter Tests (7 new)
 - `ReportExporterTests.cs` — 7 delegation tests for `ReportExporter` wrapper (Pdf+Excel with/without summary, empty rows, single row)
 
@@ -47,6 +53,12 @@
 - **Coverage thresholds** raised from 75%/65% to **80%/70%** — CI blocks PRs below these
 - `coverlet.msbuild` v10.0.1 removed from `POS.Tests.csproj` (conflicted with `coverlet.collector` 6.0.2 when using `--collect:"XPlat Code Coverage"`)
 - `POS.Application/Properties/AssemblyInfo.cs` created with `[assembly: InternalsVisibleTo("POS.Tests")]`
+
+### Fixed
+- **CI root cause**: `quality: preview` is NOT a valid input for `setup-dotnet@v4` — caused immediate exit code 1 on all 9 previous CI runs
+  - Removed invalid `quality` param
+  - Added `include-prerelease: true` (valid input enabling preview SDK matching)
+  - All 3 previous SDK-related commits (`fb0e84d`, `d6ba490`, `d3382f5`) had the same broken `quality: preview` parameter
 
 ### Infrastructure
 - GitHub repository pushed to `github.com/dld332331-svg/pos`
@@ -312,9 +324,10 @@ v6 (Infrastructure & Reporting)
                  Reporting SaleReportBuilder (3) — 11 new test files
 
 v7 (CI/CD Pipeline & Test Infrastructure)
-  └─ 1312 tests — +47: CI/CD workflow (GitHub Actions, NuGet caching,
-                 thresholds 80%/70%), MapSaleItemToDto direct tests (5),
-                 ReportExporter wrapper tests (7) — 2 new test files
+  └─ 1316 tests — +51: CI/CD workflow (GitHub Actions, NuGet caching,
+                 thresholds 80%/70%, CI fix), MapSaleItemToDto direct tests (5),
+                 BackupService retention policy tests (4),
+                 ReportExporter wrapper tests (7) — 3 new test files
 ```
 
 ---
@@ -397,11 +410,13 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | UnitOfWork Catch/Rollback | v6 | ✅ | +2 |
 | IPrinterHardwareSender Interface | v6 | ✅ | — |
 | BackupService VerifyBackupAsync | v6 | ✅ | +4 |
+| BackupService Retention Policy | v7 | ✅ | +4 |
 | Reporting SaleReportBuilder Gaps | v6 | ✅ | +3 |
 | QA Audit / Compliance Reports | v6 | ✅ | v7 refresh |
 | CI/CD Pipeline (GitHub Actions) | v7 | ✅ | — |
 | NuGet Package Caching | v7 | ✅ | — |
 | Coverage Thresholds (80%/70%) | v7 | ✅ | — |
+| CI Fix (quality→include-prerelease) | v7 | ✅ | — |
 | InternalsVisibleTo (Direct Testing) | v7 | ✅ | — |
 | MapSaleItemToDto Direct Tests | v7 | ✅ | 5 |
 | ReportExporter Wrapper Tests | v7 | ✅ | 7 |
@@ -412,8 +427,8 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 
 | Metric | v1 | v2 | v3 | v4 | v5 | v6 | v7 |
 |:-------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| **Total Tests** | ~400 | 587 | 587 | **782** | **801** | **1265** | **1312** |
-| **Test Files** | ~25 | ~33 | ~33 | **40** | **40** | **~51** | **~53** |
+| **Total Tests** | ~400 | 587 | 587 | **782** | **801** | **1265** | **1316** |
+| **Test Files** | ~25 | ~33 | ~33 | **40** | **40** | **~51** | **~54** |
 | **Services Tested** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** | **20/20** | **20/20** |
 | **Uncovered Methods** | — | — | — | 6 | **0** | **0** | **0** |
 | **Build Warnings** | 0 | 0 | 0 | 0 | **0** | **0** | **0** |
