@@ -55,8 +55,13 @@ coverage*.xml
 # ─── Coverage generated reports (entire directory is an artifact) ──
 coverage-report/
 
+# ─── Coverlet history (XML artifacts that bloat the repo) ──
+coverage-history/
+
 # ─── Coverage analysis scripts output ───────────────────────
 uncovered_methods.csv
+domain_branch_analysis.csv
+infra_branch_analysis.csv
 
 # ─── BenchmarkDotNet artifacts ────────────────────────────────
 BenchmarkDotNet.Artifacts/
