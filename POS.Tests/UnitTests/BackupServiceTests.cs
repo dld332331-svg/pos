@@ -606,4 +606,189 @@ public class BackupServiceTests : IDisposable
                 File.Delete(filePath);
         }
     }
+
+    // ========================================================================
+    // Retention Policy — EnforceRetentionPolicyAsync (called via CreateBackupAsync)
+    // ========================================================================
+
+    /// <summary>
+    /// Seeds the given number of backup records into the mock repository and
+    /// calls CreateBackupAsync (which internally calls EnforceRetentionPolicyAsync).
+    /// Returns the service and logger mock so the caller can verify retention logs.
+    /// </summary>
+    private async Task<(
+        BackupService Service,
+        Mock<ILoggerService> LoggerMock,
+        BackupRecord Result)> SeedAndCreateBackupAsync(
+        int recordCount,
+        bool createBackupFile = true)
+    {
+        var records = Enumerable.Range(0, recordCount)
+            .Select(i => CreateTestRecord(
+                id: Guid.NewGuid(),
+                filePath: $@"backups\seed_{i}.bak",
+                createdAt: DateTime.UtcNow.AddDays(-(i + 1))))
+            .ToList();
+
+        var (service, unitOfWorkMock, executorMock, loggerMock) = BuildServiceWithMocks(backupRecords: records);
+
+        executorMock
+            .Setup(e => e.BackupDatabaseAsync(It.IsAny<string>()))
+            .Callback<string>(path =>
+            {
+                if (createBackupFile)
+                {
+                    var dir = Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        Directory.CreateDirectory(dir);
+                    File.WriteAllText(path, "retention test backup");
+                }
+            })
+            .Returns(Task.CompletedTask);
+        executorMock
+            .Setup(e => e.VerifyBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        var result = await service.CreateBackupAsync();
+        return (service, loggerMock, result);
+    }
+
+    [Fact]
+    public async Task CreateBackupAsync_ExceedsCountRetention_EnforcesRetentionByCount()
+    {
+        // Arrange — seed 35 records, exceeding MaxBackupRetentionCount = 30
+        // Act
+        var (service, loggerMock, result) = await SeedAndCreateBackupAsync(recordCount: 35);
+
+        // Assert — retention policy was applied for the 5 oldest records over 30
+        loggerMock.Verify(l => l.LogInfo(
+            "Retention policy applied: {Count} old backup(s) deleted",
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
+
+        // New backup was created successfully
+        result.Should().NotBeNull();
+        result.IsVerified.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateBackupAsync_UnderCountRetention_SkipsRetention()
+    {
+        // Arrange — seed 25 records, under MaxBackupRetentionCount = 30
+        // Act
+        var (service, loggerMock, result) = await SeedAndCreateBackupAsync(recordCount: 25);
+
+        // Assert — retention by-count should NOT fire (only 25 records)
+        // But age-based retention might fire if records are old enough.
+        // Our records are 1-25 days old, well under 90-day cutoff.
+        loggerMock.Verify(l => l.LogInfo(
+            "Retention policy applied: {Count} old backup(s) deleted",
+            It.IsAny<object?[]>()), Times.Never);
+
+        result.Should().NotBeNull();
+        result.IsVerified.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateBackupAsync_RecordsExceedAgeRetention_EnforcesRetentionByAge()
+    {
+        // Arrange — seed records older than MaxBackupRetentionDays = 90
+        var oldRecords = Enumerable.Range(0, 5)
+            .Select(i => CreateTestRecord(
+                id: Guid.NewGuid(),
+                filePath: $@"backups\old_age_{i}.bak",
+                createdAt: DateTime.UtcNow.AddDays(-(100 + i))))  // 100-104 days old
+            .ToList();
+
+        var freshRecords = Enumerable.Range(0, 5)
+            .Select(i => CreateTestRecord(
+                id: Guid.NewGuid(),
+                filePath: $@"backups\fresh_{i}.bak",
+                createdAt: DateTime.UtcNow.AddDays(-1)))
+            .ToList();
+
+        var allRecords = oldRecords.Concat(freshRecords).ToList();
+        var (service, unitOfWorkMock, executorMock, loggerMock) = BuildServiceWithMocks(backupRecords: allRecords);
+
+        executorMock
+            .Setup(e => e.BackupDatabaseAsync(It.IsAny<string>()))
+            .Callback<string>(path =>
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(path, "age retention test");
+            })
+            .Returns(Task.CompletedTask);
+        executorMock
+            .Setup(e => e.VerifyBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await service.CreateBackupAsync();
+
+        // Assert — retention policy logged the 5 old records
+        loggerMock.Verify(l => l.LogInfo(
+            "Retention policy applied: {Count} old backup(s) deleted",
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
+
+        result.Should().NotBeNull();
+        result.IsVerified.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateBackupAsync_RetentionGetAllThrows_OuterCatchLogsError()
+    {
+        // Arrange — we need the retention policy's GetAllAsync to throw AFTER
+        // the initial CreateBackupAsync flow completes (backup, verify, save record).
+        //
+        // EnforceRetentionPolicyAsync is called at the END of CreateBackupAsync.
+        // It calls _unitOfWork.BackupRecords.GetAllAsync() internally.
+        // By setting up the mock to throw, we exercise the outer try/catch.
+        //
+        // However, CreateBackupAsync does NOT call GetAllAsync before retention
+        // (it only calls AddAsync). So we can safely mock GetAllAsync to throw
+        // without breaking the backup creation flow.
+        var mockRecords = new List<BackupRecord>
+        {
+            CreateTestRecord(id: Guid.NewGuid(), filePath: "existing.bak")
+        };
+
+        var (service, unitOfWorkMock, executorMock, loggerMock) = BuildServiceWithMocks(backupRecords: mockRecords);
+
+        // Setup executor for successful backup
+        executorMock
+            .Setup(e => e.BackupDatabaseAsync(It.IsAny<string>()))
+            .Callback<string>(path =>
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(path, "retention catch test");
+            })
+            .Returns(Task.CompletedTask);
+        executorMock
+            .Setup(e => e.VerifyBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        // Now make the repository's GetAllAsync throw — this will be hit when
+        // EnforceRetentionPolicyAsync calls it at the end of CreateBackupAsync
+        var backupRepoMock = Mock.Get(unitOfWorkMock.Object.BackupRecords);
+        backupRepoMock
+            .Setup(r => r.GetAllAsync())
+            .ThrowsAsync(new InvalidOperationException("DB connection lost during retention"));
+
+        // Act — the retention outer catch should swallow the error
+        var result = await service.CreateBackupAsync();
+
+        // Assert — backup was created successfully (retention failure is non-fatal)
+        result.Should().NotBeNull();
+        result.IsVerified.Should().BeTrue();
+
+        // The retention error was logged by the outer catch
+        loggerMock.Verify(l => l.LogError(
+            It.Is<string>(s => s.Contains("retention policy") || s.Contains("Failed to enforce")),
+            It.IsAny<Exception?>(),
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
+    }
 }
+
