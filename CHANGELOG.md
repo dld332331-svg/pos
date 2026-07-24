@@ -351,6 +351,8 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | **Overall branch coverage** | — | — | — | ~73% | 75.5% | **76.8%** | **76.8%** |
 | **Overall line coverage** | — | — | — | ~82% | 84.5% | **84.6%** | **84.6%** |
 
+> \* v7 POS.Application coverage estimate: 87.2% (unchanged from v6 — no successful instrumentation run completed after MapSaleItemToDto changes)
+
 ---
 
 ## Feature Milestones
