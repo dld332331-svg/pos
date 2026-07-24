@@ -37,6 +37,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IPermissionService, PermissionService>();
 
         // Register Printing Services
+        services.AddScoped<IPrinterHardwareSender, RealPrinterHardwareSender>();
         services.AddScoped<IPrinterService, ESCPOSPrinter>();
 
         // Register Backup Services

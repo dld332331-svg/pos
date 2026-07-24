@@ -205,6 +205,31 @@ public class SqlBackupExecutor : IDatabaseBackupExecutor
     }
 
     /// <summary>
+    /// Verifies the integrity of a backup file using RESTORE VERIFYONLY.
+    /// </summary>
+    public async Task<bool> VerifyBackupAsync(string backupFilePath)
+    {
+        try
+        {
+            var sql = "RESTORE VERIFYONLY FROM DISK = @BackupPath";
+            await using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            await using var command = new SqlCommand(sql, connection);
+            command.CommandTimeout = 120;
+            command.Parameters.AddWithValue("@BackupPath", backupFilePath);
+            await command.ExecuteNonQueryAsync();
+
+            _logger?.LogInfo("Backup integrity verified successfully: {Path}", backupFilePath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError($"Backup integrity verification failed: {ex.Message}", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Gets the default SQL Server data file path for the current instance.
     /// </summary>
     private string GetDefaultDataPath()

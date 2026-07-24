@@ -573,6 +573,51 @@ public class SaleCalculatorTests
     // Helper: create a sample SaleItemDto for tests
     // ========================================================================
 
+    // ========================================================================
+    // CreateItem(ProductDto) — Custom Id and Discount Edge Cases
+    // ========================================================================
+
+    [Fact]
+    public void CreateItem_FromProduct_WithCustomId_ShouldPreserveId()
+    {
+        var product = new ProductDto(
+            Guid.NewGuid(), "Tea", "شاي", "SKU002", null,
+            null, "مشروبات", "Item", "cup", 1.000m, 5.000m, 0.10m, 10.000m,
+            null, null, "Active", false, 100);
+
+        var customId = Guid.NewGuid();
+        var result = SaleCalculator.CreateItem(customId, product, 3, 1.000m);
+
+        // Non-null id → should be preserved (covers `id ?? Guid.NewGuid()` not-null branch)
+        result.Id.Should().Be(customId);
+        // Discount > 0 → lineBeforeTax = 5*3 - 1 = 14.000, tax = 14*0.1 = 1.400, total = 15.400
+        result.Discount.Should().Be(1.000m);
+        result.TaxAmount.Should().Be(1.400m);
+        result.LineTotal.Should().Be(15.400m);
+    }
+
+    [Fact]
+    public void CreateItem_FromProduct_WithNullId_ShouldGenerateNewGuid()
+    {
+        var product = new ProductDto(
+            Guid.NewGuid(), "Water", "ماء", "SKU003", null,
+            null, "مشروبات", "Item", "bottle", 0.500m, 2.000m, 0m, 20.000m,
+            null, null, "Active", false, 200);
+
+        // Null id → should generate a new Guid via `id ?? Guid.NewGuid()`
+        var result = SaleCalculator.CreateItem(null, product, 1);
+
+        result.Id.Should().NotBeEmpty();
+        result.Quantity.Should().Be(1);
+        result.UnitPrice.Should().Be(2.000m);
+        result.TaxAmount.Should().Be(0m);
+        result.LineTotal.Should().Be(2.000m);
+    }
+
+    // ========================================================================
+    // Helper: create a sample SaleItemDto for tests
+    // ========================================================================
+
     private static SaleItemDto CreateSampleItem(
         decimal unitPrice, decimal quantity, decimal taxRate,
         decimal discount, decimal lineTotal, decimal taxAmount)

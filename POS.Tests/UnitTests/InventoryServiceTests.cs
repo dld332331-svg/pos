@@ -1081,4 +1081,122 @@ public class InventoryServiceTests
         unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
         unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
     }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var product = CreateProduct();
+        var inventory = CreateInventory(product.Id, quantity: 10m);
+        var products = new List<Product> { product };
+        var inventoryItems = new List<InventoryItem> { inventory };
+
+        // Manually build mocks so InventoryItems.UpdateAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Products repo — return the product so we get past the null check
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        // InventoryItems repo — throws on UpdateAsync inside the try block
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(inventoryItems);
+        inventoryRepoMock
+            .Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>()))
+            .ThrowsAsync(new InvalidOperationException("DB update failed"));
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // Movement repo (stub)
+        unitOfWorkMock.Setup(u => u.InventoryMovements)
+            .Returns(new Mock<IRepository<InventoryMovement>>().Object);
+
+        var service = new InventoryService(unitOfWorkMock.Object, auditServiceMock.Object);
+        var request = new StockAdjustmentRequest(product.Id, NewQuantity: 25m, "Restock");
+
+        // Act
+        var result = await service.AdjustStockAsync(request, userId);
+
+        // Assert — InventoryService catches and returns failure
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("خطأ");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task RecordWasteAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var product = CreateProduct();
+        var inventory = CreateInventory(product.Id, quantity: 20m);
+        var products = new List<Product> { product };
+        var inventoryItems = new List<InventoryItem> { inventory };
+
+        // Manually build mocks so InventoryItems.UpdateAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Products repo — return the product
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        // InventoryItems repo — throws on UpdateAsync inside the try block
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(inventoryItems);
+        inventoryRepoMock
+            .Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>()))
+            .ThrowsAsync(new InvalidOperationException("DB update failed"));
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // Movement repo (stub)
+        unitOfWorkMock.Setup(u => u.InventoryMovements)
+            .Returns(new Mock<IRepository<InventoryMovement>>().Object);
+
+        var service = new InventoryService(unitOfWorkMock.Object, auditServiceMock.Object);
+        var request = new WasteRecordRequest(product.Id, Quantity: 3m, "Expired");
+
+        // Act
+        var result = await service.RecordWasteAsync(request, userId);
+
+        // Assert — InventoryService catches and returns failure
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("خطأ");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
+    }
 }

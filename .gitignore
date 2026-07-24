@@ -43,11 +43,20 @@ TestResults/
 *.coverage
 *.coveragexml
 
-# ─── Coverlet coverage reports ──────────────────────────────
+# ─── Coverlet coverage reports (raw data) ────────────────────
 coverage.json
 coverage_fresh.json
 coverage.xml
 coveragereport.json
+coverage.opencover.xml
+coverage*.json
+coverage*.xml
+
+# ─── Coverage generated reports (entire directory is an artifact) ──
+coverage-report/
+
+# ─── Coverage analysis scripts output ───────────────────────
+uncovered_methods.csv
 
 # ─── BenchmarkDotNet artifacts ────────────────────────────────
 BenchmarkDotNet.Artifacts/
@@ -72,6 +81,11 @@ release/
 
 # ─── Obsolete / renamed files ──────────────────────────────
 _nul_file
+
+# ─── Windows device file artifacts ────────────────────────
+nul
+NUL
+NUL.*
 
 # ─── Build artifacts ────────────────────────────────────────
 *.nupkg

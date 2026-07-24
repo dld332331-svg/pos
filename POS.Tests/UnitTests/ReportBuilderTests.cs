@@ -188,6 +188,75 @@ public class ReportBuilderTests
     }
 
     // ========================================================================
+    // SaleReportBuilder — Sales By Category — Empty Categories
+    // ========================================================================
+
+    [Fact]
+    public void BuildSalesByCategoryReport_WithNoData_ShowsEmptyMessage()
+    {
+        // Arrange — empty categories list, GrandTotal = 0
+        var builder = new SaleReportBuilder();
+        var from = new DateTime(2026, 7, 1);
+        var to = new DateTime(2026, 7, 19);
+        var data = new SalesByCategoryReportData(new List<CategorySalesDto>(), 0, 0);
+
+        // Act
+        var result = builder.BuildSalesByCategoryReport(from, to, BusinessName, data);
+        var text = System.Text.Encoding.UTF8.GetString(result);
+
+        // Assert — empty message displayed, no revenue distribution section
+        text.Should().Contain("\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0641\u0626\u0627\u062A \u0645\u062A\u0627\u062D\u0629");
+        text.Should().Contain("\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u062D\u0633\u0628 \u0627\u0644\u0641\u0626\u0629");
+        text.Should().Contain("\u062A\u0645 \u0625\u0639\u062F\u0627\u062F \u0627\u0644\u062A\u0642\u0631\u064A\u0631 \u0641\u064A");
+    }
+
+    // ========================================================================
+    // SaleReportBuilder — Sales By User — Empty Users
+    // ========================================================================
+
+    [Fact]
+    public void BuildSalesByUserReport_WithNoData_ShowsEmptyMessage()
+    {
+        // Arrange — empty users list
+        var builder = new SaleReportBuilder();
+        var from = new DateTime(2026, 7, 1);
+        var to = new DateTime(2026, 7, 19);
+        var data = new SalesByUserReportData(new List<UserSalesDto>(), 0, 0);
+
+        // Act
+        var result = builder.BuildSalesByUserReport(from, to, BusinessName, data);
+        var text = System.Text.Encoding.UTF8.GetString(result);
+
+        // Assert — empty message displayed
+        text.Should().Contain("\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0645\u0648\u0638\u0641\u064A\u0646 \u0645\u062A\u0627\u062D\u0629");
+        text.Should().Contain("\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u062D\u0633\u0628 \u0627\u0644\u0645\u0648\u0638\u0641");
+        text.Should().Contain("0.000");
+    }
+
+    // ========================================================================
+    // SaleReportBuilder — Sales By Payment Method — Empty Methods
+    // ========================================================================
+
+    [Fact]
+    public void BuildSalesByPaymentMethodReport_WithNoData_ShowsEmptyMessage()
+    {
+        // Arrange — empty methods list, GrandTotal = 0
+        var builder = new SaleReportBuilder();
+        var from = new DateTime(2026, 7, 1);
+        var to = new DateTime(2026, 7, 19);
+        var data = new SalesByPaymentMethodReportData(new List<PaymentMethodSalesDto>(), 0, 0);
+
+        // Act
+        var result = builder.BuildSalesByPaymentMethodReport(from, to, BusinessName, data);
+        var text = System.Text.Encoding.UTF8.GetString(result);
+
+        // Assert — empty message displayed, no distribution or comparison sections
+        text.Should().Contain("\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0637\u0631\u0642 \u062F\u0641\u0639 \u0645\u062A\u0627\u062D\u0629");
+        text.Should().Contain("\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u062D\u0633\u0628 \u0637\u0631\u064A\u0642\u0629 \u0627\u0644\u062F\u0641\u0639");
+        text.Should().Contain("0.000");
+    }
+
+    // ========================================================================
     // CashReportBuilder
     // ========================================================================
 

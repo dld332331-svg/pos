@@ -20,6 +20,35 @@ public class AuditLogger : IAuditService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Resolves the local IPv4 address via DNS. Override in tests to simulate DNS failures.
+    /// Throws on failure — the caller (<see cref="GetLocalIpAddress"/>) handles the fallback.
+    /// </summary>
+    protected virtual string ResolveLocalIpAddressOrThrow()
+    {
+        return System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
+            .AddressList
+            .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            ?.ToString() ?? "127.0.0.1";
+    }
+
+    /// <summary>
+    /// Resolves the local IPv4 address with a fallback to "127.0.0.1" on failure.
+    /// The catch block logs a debug message. Override in integration tests if needed.
+    /// </summary>
+    protected virtual string GetLocalIpAddress()
+    {
+        try
+        {
+            return ResolveLocalIpAddressOrThrow();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug("Could not resolve local IP address for audit log: {Message}", ex.Message);
+            return "127.0.0.1";
+        }
+    }
+
     public async Task LogAsync(
         Guid? userId,
         AuditActionType actionType,
@@ -31,18 +60,7 @@ public class AuditLogger : IAuditService
     {
         try
         {
-            var ipAddress = "127.0.0.1";
-            try
-            {
-                ipAddress = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName())
-                    .AddressList
-                    .FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                    ?.ToString() ?? "127.0.0.1";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug("Could not resolve local IP address for audit log: {Message}", ex.Message);
-            }
+            var ipAddress = GetLocalIpAddress();
 
             var entry = new AuditLog
             {

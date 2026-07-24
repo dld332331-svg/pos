@@ -3850,6 +3850,634 @@ public class SaleServiceTests
         result!.SaleId.Should().Be(sale1Id);
         result.TotalAmount.Should().Be(100.000m);
     }
+
+    // ========================================================================
+    // Transaction Rollback Tests (try/catch exception branches)
+    // ========================================================================
+
+    [Fact]
+    public async Task AddItemAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        var product = CreateTestProduct();
+        var inventory = CreateTestInventory(product.Id, quantity: 10m);
+        var request = new AddItemRequest(product.Id, Quantity: 2m, Notes: null, Modifiers: null);
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        saleRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Sale, bool>>>()))
+            .ReturnsAsync(new List<Sale>());
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // Product repo
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        // InventoryItems repo
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(new List<InventoryItem> { inventory });
+        inventoryRepoMock.Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // SaleItems repo
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock.Setup(r => r.AddAsync(It.IsAny<SaleItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(CreateEmptyRepoMock<InventoryMovement>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(CreateEmptyRepoMock<InventoryBatch>().Object);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(CreateEmptyRepoMock<SalePromotion>().Object);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(CreateEmptyRepoMock<Modifier>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(CreateEmptyRepoMock<ModifierSize>().Object);
+        unitOfWorkMock.Setup(u => u.Payments).Returns(CreateEmptyRepoMock<Payment>().Object);
+        unitOfWorkMock.Setup(u => u.Shifts).Returns(CreateEmptyRepoMock<Shift>().Object);
+        unitOfWorkMock.Setup(u => u.HeldSales).Returns(CreateEmptyRepoMock<HeldSale>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+
+        // Act
+        var act = () => service.AddItemAsync(saleId, request);
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveItemAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        var itemId = Guid.NewGuid();
+        var product = CreateTestProduct();
+
+        var item = new SaleItem
+        {
+            Id = itemId,
+            SaleId = saleId,
+            ProductId = product.Id,
+            ProductName = "Test",
+            Quantity = 1m,
+            UnitPrice = 10.000m
+        };
+        sale.AddItem(item);
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // SaleItems repo
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItem, bool>>>()))
+            .ReturnsAsync(new List<SaleItem> { item });
+        saleItemRepoMock.Setup(r => r.DeleteAsync(It.IsAny<SaleItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // InventoryItems repo
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(new List<InventoryItem>());
+        inventoryRepoMock.Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(CreateEmptyRepoMock<InventoryMovement>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(CreateEmptyRepoMock<Modifier>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(CreateEmptyRepoMock<ModifierSize>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+
+        // Act
+        var act = () => service.RemoveItemAsync(saleId, itemId);
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateItemQuantityAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        var itemId = Guid.NewGuid();
+        var product = CreateTestProduct();
+
+        var item = new SaleItem
+        {
+            Id = itemId,
+            SaleId = saleId,
+            ProductId = product.Id,
+            ProductName = "Test",
+            Quantity = 2m,
+            UnitPrice = 10.000m,
+            TaxRate = 0.16m
+        };
+        sale.AddItem(item);
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // Products repo
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        // SaleItems repo
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItem, bool>>>()))
+            .ReturnsAsync(new List<SaleItem> { item });
+        saleItemRepoMock.Setup(r => r.UpdateAsync(It.IsAny<SaleItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // InventoryItems repo — provide sufficient inventory so stock check passes
+        var inventoryItem = new InventoryItem
+        {
+            Id = Guid.NewGuid(),
+            ProductId = product.Id,
+            Quantity = 100m,
+            ReservedQuantity = 2m
+        };
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(new List<InventoryItem> { inventoryItem });
+        inventoryRepoMock.Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(CreateEmptyRepoMock<InventoryMovement>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(CreateEmptyRepoMock<Modifier>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(CreateEmptyRepoMock<ModifierSize>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+
+        // Act
+        var act = () => service.UpdateItemQuantityAsync(saleId, itemId, 5m);
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ModifyItemAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        var itemId = Guid.NewGuid();
+        var product = CreateTestProduct();
+
+        var item = new SaleItem
+        {
+            Id = itemId,
+            SaleId = saleId,
+            ProductId = product.Id,
+            ProductName = "Test",
+            Quantity = 2m,
+            UnitPrice = 10.000m,
+            TaxRate = 0.16m
+        };
+        sale.AddItem(item);
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // Products repo
+        var productRepoMock = new Mock<IRepository<Product>>();
+        productRepoMock.Setup(r => r.GetByIdAsync(product.Id)).ReturnsAsync(product);
+        unitOfWorkMock.Setup(u => u.Products).Returns(productRepoMock.Object);
+
+        // SaleItems repo
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItem, bool>>>()))
+            .ReturnsAsync(new List<SaleItem> { item });
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // SaleItemModifiers repo
+        var saleItemModRepoMock = new Mock<IRepository<SaleItemModifier>>();
+        saleItemModRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItemModifier, bool>>>()))
+            .ReturnsAsync(new List<SaleItemModifier>());
+        saleItemModRepoMock.Setup(r => r.AddAsync(It.IsAny<SaleItemModifier>())).Returns(Task.CompletedTask);
+        saleItemModRepoMock.Setup(r => r.DeleteAsync(It.IsAny<SaleItemModifier>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(saleItemModRepoMock.Object);
+
+        // Modifiers repo
+        var modRepoMock = new Mock<IRepository<Modifier>>();
+        modRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(new Modifier { Id = Guid.NewGuid(), Name = "Extra", Price = 1.000m });
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(modRepoMock.Object);
+
+        // ModifierSizes repo
+        var modSizeRepoMock = new Mock<IRepository<ModifierSize>>();
+        modSizeRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(new ModifierSize { Id = Guid.NewGuid(), PriceAdjustment = 0.500m });
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(modSizeRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(CreateEmptyRepoMock<InventoryMovement>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(CreateEmptyRepoMock<InventoryItem>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(CreateEmptyRepoMock<InventoryBatch>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+        unitOfWorkMock.Setup(u => u.Payments).Returns(CreateEmptyRepoMock<Payment>().Object);
+        unitOfWorkMock.Setup(u => u.Shifts).Returns(CreateEmptyRepoMock<Shift>().Object);
+        unitOfWorkMock.Setup(u => u.HeldSales).Returns(CreateEmptyRepoMock<HeldSale>().Object);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(CreateEmptyRepoMock<SalePromotion>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+        var modifiers = Array.Empty<ModifierSelectionDto>();
+
+        // Act
+        var act = () => service.ModifyItemAsync(saleId, itemId, modifiers);
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ApplyDiscountAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId);
+        sale.SubTotal = 20.000m;
+        sale.TotalAmount = 23.200m;
+        var product = CreateTestProduct();
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.Products).Returns(CreateEmptyRepoMock<Product>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(CreateEmptyRepoMock<InventoryMovement>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(CreateEmptyRepoMock<InventoryItem>().Object);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(CreateEmptyRepoMock<InventoryBatch>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(CreateEmptyRepoMock<SaleItem>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(CreateEmptyRepoMock<Modifier>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(CreateEmptyRepoMock<ModifierSize>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(CreateEmptyRepoMock<Return>().Object);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(CreateEmptyRepoMock<ReturnItem>().Object);
+        unitOfWorkMock.Setup(u => u.Payments).Returns(CreateEmptyRepoMock<Payment>().Object);
+        unitOfWorkMock.Setup(u => u.Shifts).Returns(CreateEmptyRepoMock<Shift>().Object);
+        unitOfWorkMock.Setup(u => u.HeldSales).Returns(CreateEmptyRepoMock<HeldSale>().Object);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(CreateEmptyRepoMock<SalePromotion>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+        var request = new ApplyDiscountRequest(saleId, 5.000m, "Loyalty");
+
+        // Act
+        var act = () => service.ApplyDiscountAsync(request);
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReturnItemsAsync_WhenExceptionOccurs_RollsBackTransaction()
+    {
+        // Arrange
+        var saleId = Guid.NewGuid();
+        var shiftId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var sale = CreateActiveSale(saleId, shiftId, userId);
+        sale.Status = SaleStatus.Completed;
+        sale.InvoiceNumber = "INV-001";
+
+        var item = new SaleItem
+        {
+            Id = itemId,
+            SaleId = saleId,
+            ProductId = DefaultProductId,
+            ProductName = "Test",
+            Quantity = 5m,
+            UnitPrice = 10.000m,
+            UnitOfMeasureId = null
+        };
+        sale.AddItem(item);
+
+        // Manually build mocks so CommitAsync throws
+        var unitOfWorkMock = new Mock<IUnitOfWork>();
+        var auditServiceMock = new Mock<IAuditService>();
+
+        auditServiceMock
+            .Setup(a => a.LogAsync(It.IsAny<Guid?>(), It.IsAny<AuditActionType>(),
+                It.IsAny<string>(), It.IsAny<Guid?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask);
+
+        unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.CommitAsync()).ThrowsAsync(new InvalidOperationException("DB commit failed"));
+        unitOfWorkMock.Setup(u => u.RollbackAsync()).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Sale repo
+        var saleRepoMock = new Mock<IRepository<Sale>>();
+        saleRepoMock.Setup(r => r.GetByIdAsync(saleId)).ReturnsAsync(sale);
+        saleRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Sale>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Sales).Returns(saleRepoMock.Object);
+
+        // SaleItems repo
+        var saleItemRepoMock = new Mock<IRepository<SaleItem>>();
+        saleItemRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<SaleItem, bool>>>()))
+            .ReturnsAsync(new List<SaleItem> { item });
+        unitOfWorkMock.Setup(u => u.SaleItems).Returns(saleItemRepoMock.Object);
+
+        // InventoryItems repo
+        var inventoryRepoMock = new Mock<IRepository<InventoryItem>>();
+        inventoryRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryItem, bool>>>()))
+            .ReturnsAsync(new List<InventoryItem>
+            {
+                new() { Id = Guid.NewGuid(), ProductId = DefaultProductId, Quantity = 10m, ReservedQuantity = 0m }
+            });
+        inventoryRepoMock.Setup(r => r.UpdateAsync(It.IsAny<InventoryItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryItems).Returns(inventoryRepoMock.Object);
+
+        // InventoryMovements repo
+        var movementRepoMock = new Mock<IRepository<InventoryMovement>>();
+        movementRepoMock.Setup(r => r.AddAsync(It.IsAny<InventoryMovement>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryMovements).Returns(movementRepoMock.Object);
+
+        // InventoryBatches repo (for batch restoration)
+        var batchRepoMock = new Mock<IRepository<InventoryBatch>>();
+        batchRepoMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<InventoryBatch, bool>>>()))
+            .ReturnsAsync(new List<InventoryBatch>());
+        batchRepoMock.Setup(r => r.AddAsync(It.IsAny<InventoryBatch>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.InventoryBatches).Returns(batchRepoMock.Object);
+
+        // Shifts repo
+        var shiftRepoMock = new Mock<IRepository<Shift>>();
+        shiftRepoMock.Setup(r => r.GetByIdAsync(shiftId)).ReturnsAsync(new Shift
+        {
+            Id = shiftId, Status = ShiftStatus.Open, TotalReturns = 0
+        });
+        shiftRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Shift>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Shifts).Returns(shiftRepoMock.Object);
+
+        // Returns repo
+        var returnRepoMock = new Mock<IRepository<Return>>();
+        returnRepoMock.Setup(r => r.AddAsync(It.IsAny<Return>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.Returns).Returns(returnRepoMock.Object);
+
+        // ReturnItems repo
+        var returnItemRepoMock = new Mock<IRepository<ReturnItem>>();
+        returnItemRepoMock.Setup(r => r.AddAsync(It.IsAny<ReturnItem>())).Returns(Task.CompletedTask);
+        unitOfWorkMock.Setup(u => u.ReturnItems).Returns(returnItemRepoMock.Object);
+
+        // Stub remaining repos
+        unitOfWorkMock.Setup(u => u.Products).Returns(CreateEmptyRepoMock<Product>().Object);
+        unitOfWorkMock.Setup(u => u.Users).Returns(CreateEmptyRepoMock<User>().Object);
+        unitOfWorkMock.Setup(u => u.Tables).Returns(CreateEmptyRepoMock<Table>().Object);
+        unitOfWorkMock.Setup(u => u.Customers).Returns(CreateEmptyRepoMock<Customer>().Object);
+        unitOfWorkMock.Setup(u => u.SaleItemModifiers).Returns(CreateEmptyRepoMock<SaleItemModifier>().Object);
+        unitOfWorkMock.Setup(u => u.Settings).Returns(CreateEmptyRepoMock<Setting>().Object);
+        unitOfWorkMock.Setup(u => u.Categories).Returns(CreateEmptyRepoMock<Category>().Object);
+        unitOfWorkMock.Setup(u => u.Suppliers).Returns(CreateEmptyRepoMock<Supplier>().Object);
+        unitOfWorkMock.Setup(u => u.Expenses).Returns(CreateEmptyRepoMock<Expense>().Object);
+        unitOfWorkMock.Setup(u => u.WithdrawalDeposits).Returns(CreateEmptyRepoMock<WithdrawalDeposit>().Object);
+        unitOfWorkMock.Setup(u => u.Printers).Returns(CreateEmptyRepoMock<Printer>().Object);
+        unitOfWorkMock.Setup(u => u.Registers).Returns(CreateEmptyRepoMock<Register>().Object);
+        unitOfWorkMock.Setup(u => u.KitchenStations).Returns(CreateEmptyRepoMock<KitchenStation>().Object);
+        unitOfWorkMock.Setup(u => u.Rooms).Returns(CreateEmptyRepoMock<Room>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierGroups).Returns(CreateEmptyRepoMock<ModifierGroup>().Object);
+        unitOfWorkMock.Setup(u => u.Modifiers).Returns(CreateEmptyRepoMock<Modifier>().Object);
+        unitOfWorkMock.Setup(u => u.ModifierSizes).Returns(CreateEmptyRepoMock<ModifierSize>().Object);
+        unitOfWorkMock.Setup(u => u.Recipes).Returns(CreateEmptyRepoMock<Recipe>().Object);
+        unitOfWorkMock.Setup(u => u.RecipeIngredients).Returns(CreateEmptyRepoMock<RecipeIngredient>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrders).Returns(CreateEmptyRepoMock<PurchaseOrder>().Object);
+        unitOfWorkMock.Setup(u => u.PurchaseOrderItems).Returns(CreateEmptyRepoMock<PurchaseOrderItem>().Object);
+        unitOfWorkMock.Setup(u => u.Payments).Returns(CreateEmptyRepoMock<Payment>().Object);
+        unitOfWorkMock.Setup(u => u.HeldSales).Returns(CreateEmptyRepoMock<HeldSale>().Object);
+        unitOfWorkMock.Setup(u => u.SalePromotions).Returns(CreateEmptyRepoMock<SalePromotion>().Object);
+
+        var service = new SaleService(unitOfWorkMock.Object, auditServiceMock.Object);
+        var returnItems = new List<ReturnItemRequest>
+        {
+            new(itemId, 2m, "Defective")
+        };
+
+        // Act
+        var act = () => service.ReturnItemsAsync(saleId, returnItems, "Customer return");
+
+        // Assert — exception propagates, transaction rolled back
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("DB commit failed");
+
+        unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.RollbackAsync(), Times.Once);
+        unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Once);
+    }
 }
 
 

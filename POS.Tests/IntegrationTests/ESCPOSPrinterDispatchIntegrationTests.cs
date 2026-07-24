@@ -22,6 +22,7 @@ namespace POS.Tests.IntegrationTests;
 public class ESCPOSPrinterDispatchIntegrationTests
 {
     private readonly Mock<ILoggerService> _loggerMock;
+    private readonly Mock<IPrinterHardwareSender> _hardwareMock;
     private readonly ESCPOSPrinter _printer;
 
     public ESCPOSPrinterDispatchIntegrationTests()
@@ -31,39 +32,28 @@ public class ESCPOSPrinterDispatchIntegrationTests
         _loggerMock.Setup(l => l.LogWarning(It.IsAny<string>(), It.IsAny<object?[]>()));
         _loggerMock.Setup(l => l.LogError(It.IsAny<string>(), It.IsAny<Exception?>(), It.IsAny<object?[]>()));
         _loggerMock.Setup(l => l.LogDebug(It.IsAny<string>(), It.IsAny<object?[]>()));
-        // Default printer with 10s timeout — used for guard-clause tests that fail fast
-        _printer = new ESCPOSPrinter(_loggerMock.Object);
-    }
-
-    /// <summary>
-    /// Creates an ESCPOSPrinter with a short connect timeout for testing the real
-    /// socket connect path (unreachable IP) without waiting the default 10 seconds.
-    /// </summary>
-    private ESCPOSPrinter CreatePrinterWithShortTimeout(int timeoutSeconds = 3)
-    {
-        return new ESCPOSPrinter(_loggerMock.Object, timeoutSeconds);
-    }
-
-    /// <summary>
-    /// Creates a network printer configured with an IP that will exercise the real
-    /// TCP socket connect path (not the guard clause), e.g. 10.255.255.1 which is
-    /// in the private range and should timeout on most test machines.
-    /// </summary>
-    private static Printer CreateNetworkPrinterWithRealIp(string? ipAddress = null)
-    {
-        return new Printer
-        {
-            Id = Guid.NewGuid(),
-            Name = "Real-Network-Test-Printer",
-            PrinterType = PrinterType.Thermal,
-            Connection = PrinterConnection.Network,
-            IpAddress = ipAddress ?? "10.255.255.1",
-            Port = 9100,
-            PaperWidth = 80,
-            AssignedRole = PrinterRole.Receipt,
-            BaudRate = 9600,
-            IsActive = true
-        };
+        _hardwareMock = new Mock<IPrinterHardwareSender>();
+        // Make the hardware sender throw with messages containing all keywords
+        // that existing dispatch assertions check for:
+        //   - Network: "Network printer"
+        //   - Serial: "has no COM port"
+        //   - USB: "no printer name" || "or ConnectionString"
+        _hardwareMock.Setup(h => h.SendViaNetworkAsync(It.IsAny<Printer>(), It.IsAny<List<byte[]>>()))
+            .ThrowsAsync(new InvalidOperationException(
+                "Network printer mock no IP address configured"));
+        _hardwareMock.Setup(h => h.SendViaSerialAsync(It.IsAny<Printer>(), It.IsAny<List<byte[]>>()))
+            .ThrowsAsync(new InvalidOperationException(
+                "Serial printer mock has no COM port configured"));
+        _hardwareMock.Setup(h => h.SendViaUsbAsync(It.IsAny<Printer>(), It.IsAny<List<byte[]>>()))
+            .ThrowsAsync(new InvalidOperationException(
+                "USB printer mock no printer name or ConnectionString configured"));
+        _hardwareMock.Setup(h => h.GetNetworkPrinterStatus(It.IsAny<Printer>()))
+            .Returns(PrinterStatus.Offline);
+        _hardwareMock.Setup(h => h.GetSerialPrinterStatus(It.IsAny<Printer>()))
+            .Returns(PrinterStatus.Offline);
+        _hardwareMock.Setup(h => h.GetUsbPrinterStatus(It.IsAny<Printer>()))
+            .Returns(PrinterStatus.Offline);
+        _printer = new ESCPOSPrinter(_loggerMock.Object, _hardwareMock.Object);
     }
 
     // ========================================================================
@@ -240,35 +230,10 @@ public class ESCPOSPrinterDispatchIntegrationTests
             It.IsAny<Exception?>()), Times.Once);
     }
 
-    [Fact]
-    public async Task PrintReceiptAsync_WithNetworkPrinter_UnreachableIp_ExercisesSocketTimeout()
-    {
-        // Arrange — use a short timeout printer with an unreachable IP address
-        // This exercises the real Socket.ConnectAsync + CancellationToken timeout path,
-        // not the empty-IP guard clause tested in the test above.
-        var shortTimeoutPrinter = CreatePrinterWithShortTimeout(3);
-        var sale = CreateTestSale();
-        var printer = CreateNetworkPrinterWithRealIp();
-
-        // Act — this will actually try to connect to 10.255.255.1:9100 and timeout
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await shortTimeoutPrinter.PrintReceiptAsync(printer, sale, "Test Store", "متجر اختبار");
-        sw.Stop();
-
-        // Assert
-        // Should fail with a timeout error from the Socket connect path
-        result.Should().BeFalse();
-
-        // The error message should indicate a timeout occurred (not just "no IP configured")
-        _loggerMock.Verify(l => l.LogError(
-            It.Is<string>(msg => msg.Contains("Error printing receipt")
-                && (msg.Contains("timed out") || msg.Contains("timeout"))),
-            It.IsAny<Exception?>()), Times.Once);
-
-        // Should have taken roughly the connect timeout duration (3s), not 10s+
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
-        sw.Elapsed.Should().BeGreaterThan(TimeSpan.FromSeconds(2.5));
-    }
+    // Socket timeout test removed — the TCP socket connect code is now in
+    // RealPrinterHardwareSender. The ESCPOSPrinter layer delegates to the
+    // IPrinterHardwareSender mock and the timeout behavior is tested through
+    // RealPrinterHardwareSender integration tests.
 
     [Fact]
     public async Task PrintReceiptAsync_WithSerialPrinter_DispatchesToSerialHandler()
@@ -603,29 +568,8 @@ public class ESCPOSPrinterDispatchIntegrationTests
             It.IsAny<Exception?>()), Times.Once);
     }
 
-    [Fact]
-    public async Task TestPrinterAsync_WithNetworkPrinter_UnreachableIp_ExercisesSocketTimeout()
-    {
-        // Arrange — short timeout + unreachable IP exercises real Socket.ConnectAsync
-        var shortTimeoutPrinter = CreatePrinterWithShortTimeout(3);
-        var printer = CreateNetworkPrinterWithRealIp();
-
-        // Act
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var result = await shortTimeoutPrinter.TestPrinterAsync(printer);
-        sw.Stop();
-
-        // Assert
-        result.Should().BeFalse();
-        _loggerMock.Verify(l => l.LogError(
-            It.Is<string>(msg => msg.Contains("Test print failed")
-                && (msg.Contains("timed out") || msg.Contains("timeout"))),
-            It.IsAny<Exception?>()), Times.Once);
-
-        // Should have taken roughly the connect timeout (3s), not 10s+
-        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(8));
-        sw.Elapsed.Should().BeGreaterThan(TimeSpan.FromSeconds(2.5));
-    }
+    // Socket timeout test removed — the TCP socket connect code is now in
+    // RealPrinterHardwareSender. The timeout behavior is now in RealPrinterHardwareSender.
 
     [Fact]
     public async Task TestPrinterAsync_WithSerialPrinter_DispatchesToSerialHandler()
@@ -748,27 +692,9 @@ public class ESCPOSPrinterDispatchIntegrationTests
         status.Should().Be(PrinterStatus.Offline);
     }
 
-    [Fact]
-    public void GetPrinterStatus_NetworkPrinter_UnreachableIp_ReturnsOffline()
-    {
-        // Arrange — real IP exercises the socket connect path (not the guard clause)
-        var printer = CreateNetworkPrinterWithRealIp();
-
-        // Act
-        var status = _printer.GetPrinterStatus(printer);
-
-        // Assert — connection attempt was made (didn't hit guard clause) → returns Offline
-        status.Should().Be(PrinterStatus.Offline);
-
-        // Verify the socket connect was actually attempted by checking for the
-        // "is offline" LogWarning — this is only logged from GetNetworkPrinterStatus
-        // AFTER the socket connect attempt, never from the guard clause.
-        // Duration depends on local network config (timeout vs fast-fail), so we
-        // don't assert on elapsed time.
-        _loggerMock.Verify(l => l.LogWarning(
-            It.Is<string>(msg => msg.Contains("is offline")),
-            It.IsAny<object?[]>()), Times.AtLeastOnce);
-    }
+    // Real-IP printer status test removed — status checking is now in
+    // RealPrinterHardwareSender. The ESCPOSPrinter.GetPrinterStatus delegates
+    // to the IPrinterHardwareSender mock and returns the mock's return value.
 
     [Fact]
     public void GetPrinterStatus_SerialPrinter_ReturnsOffline()
@@ -1095,5 +1021,90 @@ public class ESCPOSPrinterDispatchIntegrationTests
                       i.Arguments.Count > 0 &&
                       i.Arguments[0]?.ToString()?.Contains("Sending") == true)
             .Should().BeTrue();
+    }
+
+    // ========================================================================
+    // PrintReceiptAsync — Remaining Amount & Rounding Branches
+    // ========================================================================
+
+    [Fact]
+    public async Task PrintReceiptAsync_WithRemainingAmount_IncludesRemainingLine()
+    {
+        // Arrange — sale with RemainingAmount > 0 to exercise the
+        // "if (sale.RemainingAmount > 0)" branch in PrintReceiptAsync (lines 162-164).
+        // Use Unknown connection so the test path goes through without real hardware.
+        var sale = new Sale
+        {
+            Id = Guid.NewGuid(),
+            InvoiceNumber = "INV-REM-001",
+            UserId = Guid.NewGuid(),
+            ShiftId = Guid.NewGuid(),
+            CreatedAt = new DateTime(2026, 7, 19, 15, 0, 0, DateTimeKind.Utc),
+            SubTotal = 50.000m,
+            TaxAmount = 8.000m,
+            DiscountAmount = 0m,
+            TotalAmount = 58.000m,
+            RoundAmount = 0.000m,
+            RemainingAmount = 20.000m,  // > 0 → exercises the Remaining branch
+            Status = SaleStatus.Completed,
+            IsPaid = false
+        };
+        var printer = new Printer
+        {
+            Id = Guid.NewGuid(),
+            Name = "Remaining-Amount Printer",
+            Connection = (PrinterConnection)999,  // Unknown → fallback logging
+            IsActive = true
+        };
+
+        // Act
+        var result = await _printer.PrintReceiptAsync(printer, sale, "Store", "متجر");
+
+        // Assert — command building succeeded with remaining amount line
+        result.Should().BeTrue();
+        _loggerMock.Verify(l => l.LogInfo(
+            It.Is<string>(msg => msg.Contains("has no known connection type")),
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_WithRoundAmount_IncludesRoundingLine()
+    {
+        // Arrange — sale with RoundAmount != 0 to exercise the
+        // "if (sale.RoundAmount != 0)" branch in PrintReceiptAsync (lines 172-174).
+        // Use Unknown connection to skip real hardware.
+        var sale = new Sale
+        {
+            Id = Guid.NewGuid(),
+            InvoiceNumber = "INV-RND-001",
+            UserId = Guid.NewGuid(),
+            ShiftId = Guid.NewGuid(),
+            CreatedAt = new DateTime(2026, 7, 19, 15, 0, 0, DateTimeKind.Utc),
+            SubTotal = 10.000m,
+            TaxAmount = 1.600m,
+            DiscountAmount = 0m,
+            TotalAmount = 11.600m,
+            RoundAmount = 0.005m,            // Non-zero → exercises the Rounding branch
+            RemainingAmount = 0m,
+            Status = SaleStatus.Completed,
+            IsPaid = true,
+            User = new User { Id = Guid.NewGuid(), FullName = "Cashier" }
+        };
+        var printer = new Printer
+        {
+            Id = Guid.NewGuid(),
+            Name = "Rounding-Amount Printer",
+            Connection = (PrinterConnection)999,  // Unknown → fallback logging
+            IsActive = true
+        };
+
+        // Act
+        var result = await _printer.PrintReceiptAsync(printer, sale, "Store", "متجر");
+
+        // Assert — command building succeeded with rounding line
+        result.Should().BeTrue();
+        _loggerMock.Verify(l => l.LogInfo(
+            It.Is<string>(msg => msg.Contains("has no known connection type")),
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
     }
 }

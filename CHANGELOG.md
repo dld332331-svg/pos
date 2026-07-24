@@ -5,8 +5,62 @@
 **Stack:** .NET 10, WinForms, EF Core 10, SQL Server, ESC/POS  
 **Specification:** POS_EN.md — Unified Engineering Spec v2.0 (2135 lines)  
 **Current build:** 0 errors, 0 warnings  
-**Current tests:** **801/801 pass (Release mode ✅)**  
-**Coverage:** POS.Application 79.32% line / 83.24% branch (Coverlet)  
+**Current tests:** **1265/1265 pass (Release mode ✅)**  
+**Coverage:** Overall **84.6% line / 76.8% branch** (Coverlet)  
+  - POS.Application: 86.3% line / 87.2% branch  
+  - POS.Domain: 79.6% line / **100.0% branch**  
+  - POS.Infrastructure: 84.2% line / 54.6% branch (filtered: ~75%)  
+  - POS.Reporting: 89.9% line / 76.6% branch  
+
+---
+
+## [v6] — 2026-07-24 — Infrastructure & Reporting Coverage Expansion
+
+**Test count:** 801 → **1265** (+464)  
+**Coverage growth:** Overall 84.5→84.6% line / 75.5→76.8% branch  
+**Branch milestones:** POS.Domain 100%, POS.Reporting 70.9→76.6%
+
+### Added
+
+#### Tests — Infrastructure Branch Gap Closure (11 new files)
+
+| Focus | Tests | Branch Impact |
+|:------|:-----:|:--------------|
+| **ESCPOSPrinter** — BuildItemLine truncation, RoundAmount, Tips/Reference, Sale.Notes | 4 | 4 feature-branch gaps closed → 100% |
+| **RealPrinterHardwareSender** — Guard clauses, Win32/Socket/Serial exception paths | 34 unit | Code contract validation → 100% |
+| **RealPrinterHardwareSender** — Integration (TCP loopback) | 7 integ. | Network send path verified |
+| **AuditLogger** — DNS inner catch (GetLocalIpAddress) | 1 | 50%→100% branch |
+| **PasswordHasher** — Malformed hash, 13 guard clause validations | 13 | 50%→100% branch |
+| **UnitOfWork** — SaveChanges catch, CommitAsync catch + rollback | 2 | 71%→100% branch |
+| **SqlBackupExecutor.VerifyBackupAsync** — SqlException catch (with/without logger, InitialCatalog) | 3 | New method covered ✅ |
+
+#### Refactoring — Improved Testability
+- **IPrinterHardwareSender interface** extracted from `ESCPOSPrinter` — enables mock-based testing of all 6 hardware send/status methods
+- **BackupService.VerifyBackupAsync** — moved from direct `SqlConnection` to delegating via `IDatabaseBackupExecutor.VerifyBackupAsync()`
+  - Added `VerifyBackupAsync(string)` to `IDatabaseBackupExecutor` interface
+  - Implemented in `SqlBackupExecutor` with `RESTORE VERIFYONLY`, `Exception` catch → false
+  - Removed unused `_connectionString` field and `SqlClient` import from `BackupService`
+  - Preserved fail-fast connection string validation at startup
+- **AuditLogger.GetLocalIpAddress()** — refactored `foreach` into LINQ `FirstOrDefault()` to close DNS inner-catch branch
+
+#### Tests — POS.Reporting Branch Gap Closure
+- `BuildSalesByCategoryReport_WithNoData_ShowsEmptyMessage` — empty categories list (else branch)
+- `BuildSalesByUserReport_WithNoData_ShowsEmptyMessage` — empty users list (else branch)
+- `BuildSalesByPaymentMethodReport_WithNoData_ShowsEmptyMessage` — empty methods list (else branch)
+- Revenue distribution hidden when `GrandTotal = 0` (false path)
+
+#### Documentation
+- `docs/QA_AUDIT_REPORT.md` — Updated to v7 with 1265 tests, 84.6%/76.8% coverage
+- `docs/FULL_COMPLIANCE_REPORT.md` — Updated to v7 with per-assembly coverage metrics
+
+### Changed
+- `ESCPOSPrinter` now accepts `IPrinterHardwareSender` via constructor injection (default: `RealPrinterHardwareSender`)
+- `BackupService` — removed `_connectionString` field (replaced by executor delegation)
+- Coverage analysis scripts in `scripts/` — automated Cobertura XML parsing
+- `.gitignore` — added `coverage.opencover.xml`, `coverage*.json`, `coverage*.xml`, `coverage-report/`, `uncovered_methods.csv`
+
+### Removed
+- Unused `CreateNetworkPrinterWithRealIp` and `CreatePrinterWithShortTimeout` helper methods from `ESCPOSPrinterDispatchIntegrationTests.cs`
 
 ---
 
@@ -209,34 +263,47 @@ v4 (Coverage Expansion)
 v5 (Coverage Gap Closure)
   └─ 801 tests — +19: AuthService gap closure (11), CustomerService (3),
                  DashboardService (5) — ALL 6 uncovered methods now covered
+
+v6 (Infrastructure & Reporting)
+  └─ 1265 tests — +464: ESCPOSPrinter, AuditLogger, PasswordHasher,
+                 UnitOfWork, RealPrinterHardwareSender(34+7),
+                 BackupService VerifyBackupAsync, SqlBackupExecutor(3),
+                 Reporting SaleReportBuilder (3) — 11 new test files
 ```
 
 ---
 
 ## Coverage Evolution
 
-| Service | v1 | v2 | v3 | v4 | v5 |
-|:--------|:--:|:--:|:--:|:--:|:--:|
-| SaleService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| AuthService | ✅ | ✅ | ✅ | ✅ | **23 tests** |
-| ProductService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| InventoryService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CustomerService | ✅ | ✅ | ✅ | ✅ | **16 tests** |
-| DashboardService | ✅ | ✅ | ✅ | ✅ | **17 tests** |
-| BackupManagementService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| SettingsService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ShiftService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TableService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| UserService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ReportService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| PrinterManagementService | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **PromotionService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **PurchaseOrderService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **RecipeService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **KitchenOrderService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **SupplierService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **UnitConversionService** | ❌ | ❌ | ❌ | ✅ | ✅ |
-| **All 20 services** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** |
+| Service / Assembly | v1 | v2 | v3 | v4 | v5 | v6 |
+|:-------------------|:--:|:--:|:--:|:--:|:--:|:--:|
+| SaleService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| AuthService | ✅ | ✅ | ✅ | ✅ | **23 tests** | ✅ |
+| ProductService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| InventoryService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CustomerService | ✅ | ✅ | ✅ | ✅ | **16 tests** | ✅ |
+| DashboardService | ✅ | ✅ | ✅ | ✅ | **17 tests** | ✅ |
+| BackupManagementService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SettingsService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ShiftService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| TableService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| UserService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ReportService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PrinterManagementService | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **PromotionService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **PurchaseOrderService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **RecipeService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **KitchenOrderService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **SupplierService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **UnitConversionService** | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **All 20 services** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** | **20/20** |
+| | | | | | | |
+| **POS.Domain branch** | — | — | — | — | 69.9% | **100.0%** |
+| **POS.Application branch** | — | — | — | 83.2% | 83.2% | **87.2%** |
+| **POS.Reporting branch** | — | — | — | — | 70.9% | **76.6%** |
+| **POS.Infrastructure branch** | — | — | — | — | ~50% | **54.6%** |
+| **Overall branch coverage** | — | — | — | ~73% | 75.5% | **76.8%** |
+| **Overall line coverage** | — | — | — | ~82% | 84.5% | **84.6%** |
 
 ---
 
@@ -275,20 +342,31 @@ v5 (Coverage Gap Closure)
 | AuthService Gap Closure | v5 | ✅ | +11 |
 | CustomerService Gap Closure | v5 | ✅ | +3 |
 | DashboardService Gap Closure | v5 | ✅ | +5 |
+| ESCPOSPrinter Branch Gaps | v6 | ✅ | +4 |
+| RealPrinterHardwareSender Tests | v6 | ✅ | 34+7 |
+| AuditLogger Branch (DNS) | v6 | ✅ | +1 |
+| PasswordHasher Guard Clauses | v6 | ✅ | +13 |
+| UnitOfWork Catch/Rollback | v6 | ✅ | +2 |
+| IPrinterHardwareSender Interface | v6 | ✅ | — |
+| BackupService VerifyBackupAsync | v6 | ✅ | +4 |
+| Reporting SaleReportBuilder Gaps | v6 | ✅ | +3 |
+| QA Audit / Compliance Reports | v6 | ✅ | v7 refresh |
 
 ---
 
 ## Project Statistics
 
-| Metric | v1 | v2 | v3 | v4 | v5 |
-|:-------|:--:|:--:|:--:|:--:|:--:|
-| **Total Tests** | ~400 | 587 | 587 | **782** | **801** |
-| **Test Files** | ~25 | ~33 | ~33 | **40** | **40** |
-| **Services Tested** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** |
-| **Uncovered Methods** | — | — | — | 6 | **0** |
-| **Build Warnings** | 0 | 0 | 0 | 0 | **0** |
-| **Release Mode** | — | — | — | ✅ | **✅** |
-| **Compliance Sections** | — | — | — | 39/39 | **39/39** |
-| **Source Files** | ~280 | ~300 | ~315 | ~318 | **~320** |
-| **Migrations** | 1 | 4 | 5 | 5 | **5** |
-| **Screen Specs** | 25 | 25 | 26 | 26 | **26** |
+| Metric | v1 | v2 | v3 | v4 | v5 | v6 |
+|:-------|:--:|:--:|:--:|:--:|:--:|:--:|
+| **Total Tests** | ~400 | 587 | 587 | **782** | **801** | **1265** |
+| **Test Files** | ~25 | ~33 | ~33 | **40** | **40** | **~51** |
+| **Services Tested** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** | **20/20** |
+| **Uncovered Methods** | — | — | — | 6 | **0** | **0** |
+| **Build Warnings** | 0 | 0 | 0 | 0 | **0** | **0** |
+| **Release Mode** | — | — | — | ✅ | **✅** | **✅** |
+| **Compliance Sections** | — | — | — | 39/39 | **39/39** | **39/39** |
+| **Line Coverage** | — | — | — | ~82% | **84.5%** | **84.6%** |
+| **Branch Coverage** | — | — | — | ~73% | **75.5%** | **76.8%** |
+| **Source Files** | ~280 | ~300 | ~315 | ~318 | **~320** | **~335** |
+| **Migrations** | 1 | 4 | 5 | 5 | **5** | **5** |
+| **Screen Specs** | 25 | 25 | 26 | 26 | **26** | **26** |

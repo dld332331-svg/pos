@@ -34,7 +34,8 @@ public class ESCPOSPrinterBenchmarks
     public void Setup()
     {
         _logger = new TestLogger();
-        _printer = new ESCPOSPrinter(_logger, connectTimeoutSeconds: 1);
+        var hardwareSender = new RealPrinterHardwareSender(_logger, 1);
+        _printer = new ESCPOSPrinter(_logger, hardwareSender);
 
         // Use non-matching PrinterConnection value (99) so SendToPrinterAsync
         // falls through to the default: no-op fallback path.

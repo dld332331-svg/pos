@@ -265,25 +265,31 @@ public sealed class FormTestHost<TForm> : IDisposable where TForm : Control
     /// <summary>
     /// Wires an event and waits for it to fire, returning the event args.
     /// Only works for EventHandler&lt;TEventArgs&gt; pattern.
+    /// Uses 10 second default timeout to accommodate full test suite load.
     /// </summary>
     public async Task<TEventArgs?> AwaitEvent<TEventArgs>(
-        string eventName, int timeoutMs = 3000) where TEventArgs : class
+        string eventName, int timeoutMs = 10000) where TEventArgs : class
     {
         var tcs = new TaskCompletionSource<TEventArgs?>();
-        var eventInfo = typeof(TForm).GetEvent(eventName,
-            BindingFlags.Public | BindingFlags.Instance)
-            ?? throw new ArgumentException($"Event '{eventName}' not found on {typeof(TForm).Name}.");
 
-        // Create a handler that captures the event args
-        EventHandler<TEventArgs>? handler = null;
-        handler = (sender, args) =>
+        // Subscribe to the event on the UI thread to avoid cross-thread issues
+        // with WinForms controls when _control is a Form created on the UI thread.
+        InvokeOnUI(() =>
         {
-            // Unsubscribe to avoid leaks
-            try { eventInfo.RemoveEventHandler(_control, handler); } catch { }
-            tcs.TrySetResult(args);
-        };
+            var eventInfo = typeof(TForm).GetEvent(eventName,
+                BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new ArgumentException($"Event '{eventName}' not found on {typeof(TForm).Name}.");
 
-        eventInfo.AddEventHandler(_control, handler);
+            EventHandler<TEventArgs>? handler = null;
+            handler = (sender, args) =>
+            {
+                // Unsubscribe to avoid leaks
+                try { eventInfo.RemoveEventHandler(_control, handler); } catch { }
+                tcs.TrySetResult(args);
+            };
+
+            eventInfo.AddEventHandler(_control, handler);
+        });
 
         using var cts = new CancellationTokenSource(timeoutMs);
         using var registration = cts.Token.Register(() =>
@@ -293,21 +299,26 @@ public sealed class FormTestHost<TForm> : IDisposable where TForm : Control
     }
 
     /// <summary>Waits for an EventHandler (non-generic) to fire.</summary>
-    public async Task<bool> AwaitSimpleEvent(string eventName, int timeoutMs = 3000)
+    public async Task<bool> AwaitSimpleEvent(string eventName, int timeoutMs = 10000)
     {
         var tcs = new TaskCompletionSource<bool>();
-        var eventInfo = typeof(TForm).GetEvent(eventName,
-            BindingFlags.Public | BindingFlags.Instance)
-            ?? throw new ArgumentException($"Event '{eventName}' not found.");
 
-        EventHandler? handler = null;
-        handler = (sender, args) =>
+        // Subscribe on the UI thread to avoid cross-thread issues
+        InvokeOnUI(() =>
         {
-            try { eventInfo.RemoveEventHandler(_control, handler); } catch { }
-            tcs.TrySetResult(true);
-        };
+            var eventInfo = typeof(TForm).GetEvent(eventName,
+                BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new ArgumentException($"Event '{eventName}' not found.");
 
-        eventInfo.AddEventHandler(_control, handler);
+            EventHandler? handler = null;
+            handler = (sender, args) =>
+            {
+                try { eventInfo.RemoveEventHandler(_control, handler); } catch { }
+                tcs.TrySetResult(true);
+            };
+
+            eventInfo.AddEventHandler(_control, handler);
+        });
 
         using var cts = new CancellationTokenSource(timeoutMs);
         using var registration = cts.Token.Register(() =>

@@ -180,4 +180,54 @@ public class SqlBackupExecutorTests
         // Assert — SetMultiUserModeAsync rethrows the original SqlException
         await act.Should().ThrowAsync<SqlException>();
     }
+
+    // ========================================================================
+    // VerifyBackupAsync — Backup Integrity Verification
+    // ========================================================================
+
+    [Fact]
+    public async Task VerifyBackupAsync_ReturnsFalseOnSqlException()
+    {
+        // Arrange — server unreachable → SqlException → caught, logged, returns false
+        var loggerMock = new Mock<ILoggerService>();
+        var executor = new SqlBackupExecutor(BasicConnectionString, loggerMock.Object);
+
+        // Act — SQL Server is unreachable, SqlException is thrown
+        var result = await executor.VerifyBackupAsync(@"C:\backup.bak");
+
+        // Assert — returns false (not throws)
+        result.Should().BeFalse();
+
+        // Error was logged with the failure message
+        loggerMock.Verify(l => l.LogError(
+            It.Is<string>(s => s.Contains("verification failed")),
+            It.IsAny<Exception>(),
+            It.IsAny<object?[]>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task VerifyBackupAsync_WithoutLogger_ReturnsFalseWithoutError()
+    {
+        // Arrange — no logger, server unreachable
+        var executor = new SqlBackupExecutor(BasicConnectionString);
+
+        // Act
+        var result = await executor.VerifyBackupAsync(@"C:\backup.bak");
+
+        // Assert — returns false (no exception bubbles up)
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task VerifyBackupAsync_WithInitialCatalog_ReturnsFalse()
+    {
+        // Arrange — connection string with InitialCatalog, but server unreachable
+        var executor = new SqlBackupExecutor(WithInitialCatalog);
+
+        // Act
+        var result = await executor.VerifyBackupAsync(@"C:\backup.bak");
+
+        // Assert
+        result.Should().BeFalse();
+    }
 }

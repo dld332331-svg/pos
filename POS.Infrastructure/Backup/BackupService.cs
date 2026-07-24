@@ -3,14 +3,11 @@ using POS.Domain.Interfaces;
 
 namespace POS.Infrastructure.Backup;
 
-using Microsoft.Data.SqlClient;
-
 public class BackupService : IBackupService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDatabaseBackupExecutor _backupExecutor;
     private readonly ILoggerService _logger;
-    private readonly string _connectionString;
 
     private const string BackupDirectory = "backups";
     
@@ -30,7 +27,8 @@ public class BackupService : IBackupService
         _unitOfWork = unitOfWork;
         _backupExecutor = backupExecutor;
         _logger = logger;
-        _connectionString = configuration.GetSection("ConnectionStrings")["DefaultConnection"]
+        // Validate that the connection string is configured (consumed by IDatabaseBackupExecutor)
+        _ = configuration.GetSection("ConnectionStrings")["DefaultConnection"]
             ?? throw new InvalidOperationException("DefaultConnection string is not configured.");
     }
 
@@ -85,27 +83,11 @@ public class BackupService : IBackupService
     }
 
     /// <summary>
-    /// Verifies backup integrity using RESTORE VERIFYONLY.
+    /// Verifies backup integrity using RESTORE VERIFYONLY via IDatabaseBackupExecutor.
     /// </summary>
     private async Task<bool> VerifyBackupAsync(string backupFilePath)
     {
-        try
-        {
-            var sql = $"RESTORE VERIFYONLY FROM DISK = @BackupPath";
-            await using var connection = new SqlConnection(_connectionString);
-            await connection.OpenAsync();
-            await using var command = new SqlCommand(sql, connection);
-            command.CommandTimeout = 120;
-            command.Parameters.AddWithValue("@BackupPath", backupFilePath);
-            await command.ExecuteNonQueryAsync();
-            _logger.LogInfo("Backup integrity verified successfully: {Path}", backupFilePath);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Backup integrity verification failed: {ex.Message}", ex);
-            return false;
-        }
+        return await _backupExecutor.VerifyBackupAsync(backupFilePath);
     }
 
     public async Task<BackupRecord> CreateBackupAsync(string? notes = null)

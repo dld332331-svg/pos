@@ -1263,4 +1263,109 @@ public class ProductServiceTests
         // Assert
         result.Should().BeEmpty();
     }
+
+    // ========================================================================
+    // MapToDto — Static Mapping Edge Cases
+    // ========================================================================
+
+    [Fact]
+    public async Task GetProductsAsync_UnknownCategory_ReturnsNullCategoryName()
+    {
+        // Arrange — product.CategoryId doesn't match any category in the map
+        var unknownCatId = Guid.NewGuid();
+        var product = CreateTestProduct(
+            arabicName: "منتج بفئة غير معروفة",
+            categoryId: unknownCatId);  // CategoryId not in the provided categories
+        
+        // Provide a category with a DIFFERENT Id so product.CategoryId won't be found
+        var categories = new List<Category>
+        {
+            CreateTestCategory(id: Guid.NewGuid(), name: "فئة مختلفة")
+        };
+        var inventory = new List<InventoryItem> { CreateTestInventory(product.Id) };
+
+        var (service, _, _) = BuildServiceWithMocks(
+            products: new List<Product> { product },
+            categories: categories,
+            inventoryItems: inventory);
+
+        var filter = new ProductFilterDto(null, null, null, null);
+
+        // Act
+        var result = await service.GetProductsAsync(filter);
+
+        // Assert — CategoryName should be null since category not in map
+        result.Items.Should().HaveCount(1);
+        result.Items[0].CategoryName.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetProductsAsync_NoInventoryRecord_ReturnsZeroCurrentStock()
+    {
+        // Arrange — product has no inventory record
+        var product = CreateTestProduct(arabicName: "منتج بدون مخزون");
+        var categories = new List<Category> { CreateTestCategory() };
+        // No inventory items passed
+
+        var (service, _, _) = BuildServiceWithMocks(
+            products: new List<Product> { product },
+            categories: categories);
+
+        var filter = new ProductFilterDto(null, null, null, null);
+
+        // Act
+        var result = await service.GetProductsAsync(filter);
+
+        // Assert — CurrentStock should be 0 since no inventory record
+        result.Items.Should().HaveCount(1);
+        result.Items[0].CurrentStock.Should().Be(0m);
+    }
+
+    // ========================================================================
+    // ProductValidator — Validation Edge Cases
+    // ========================================================================
+
+    [Fact]
+    public async Task CreateProductAsync_TaxRateAbove100_ReturnsValidationError()
+    {
+        // Arrange
+        var category = CreateTestCategory();
+        var (service, _, _) = BuildServiceWithMocks(
+            categories: new List<Category> { category });
+
+        var request = new CreateProductRequest(
+            Name: "Test", ArabicName: "اختبار", Sku: "TST", Barcode: null,
+            CategoryId: DefaultCategoryId, ProductType: "Standard", Unit: "piece",
+            Cost: 5m, Price: 10m, TaxRate: 150m, MinStock: 0,
+            SupplierId: null, AllowModifiers: false);
+
+        // Act
+        var act = () => service.CreateProductAsync(request);
+
+        // Assert — TaxRate > 100 should fail validation
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*نسبة الضريبة يجب أن تكون بين 0 و 100*");
+    }
+
+    [Fact]
+    public async Task CreateProductAsync_NegativeCost_ReturnsValidationError()
+    {
+        // Arrange
+        var category = CreateTestCategory();
+        var (service, _, _) = BuildServiceWithMocks(
+            categories: new List<Category> { category });
+
+        var request = new CreateProductRequest(
+            Name: "Test", ArabicName: "اختبار", Sku: "TST", Barcode: null,
+            CategoryId: DefaultCategoryId, ProductType: "Standard", Unit: "piece",
+            Cost: -5m, Price: 10m, TaxRate: 16m, MinStock: 0,
+            SupplierId: null, AllowModifiers: false);
+
+        // Act
+        var act = () => service.CreateProductAsync(request);
+
+        // Assert — Cost < 0 should fail validation
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*التكلفة يجب أن تكون 0 أو أكبر*");
+    }
 }

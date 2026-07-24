@@ -1,5 +1,3 @@
-using System.IO.Ports;
-using System.Net.Sockets;
 using System.Text;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -20,7 +18,7 @@ namespace POS.Infrastructure.Printing;
 public class ESCPOSPrinter : IPrinterService
 {
     private readonly ILoggerService _logger;
-    private readonly int _connectTimeoutSeconds;
+    private readonly IPrinterHardwareSender _hardwareSender;
 
     // ESC/POS Control Characters
     private const byte ESC = 0x1B;
@@ -31,14 +29,14 @@ public class ESCPOSPrinter : IPrinterService
     /// Initializes a new instance of <see cref="ESCPOSPrinter"/>.
     /// </summary>
     /// <param name="logger">Logger service for audit and debug traces.</param>
-    /// <param name="connectTimeoutSeconds">
-    /// TCP socket connect timeout in seconds (default 10).
-    /// Used only for network printer connections.
+    /// <param name="hardwareSender">
+    /// Hardware-level printer communication service.
+    /// Inject a mock for unit testing; use <see cref="RealPrinterHardwareSender"/> in production.
     /// </param>
-    public ESCPOSPrinter(ILoggerService logger, int connectTimeoutSeconds = 10)
+    public ESCPOSPrinter(ILoggerService logger, IPrinterHardwareSender hardwareSender)
     {
         _logger = logger;
-        _connectTimeoutSeconds = connectTimeoutSeconds > 0 ? connectTimeoutSeconds : 10;
+        _hardwareSender = hardwareSender;
     }
 
     public async Task<bool> PrintReceiptAsync(Printer printer, Sale sale, string storeName, string storeNameArabic, string footerMessage = "", string footerMessageArabic = "")
@@ -351,13 +349,13 @@ public class ESCPOSPrinter : IPrinterService
             switch (printer.Connection)
             {
                 case PrinterConnection.Network:
-                    return GetNetworkPrinterStatus(printer);
+                    return _hardwareSender.GetNetworkPrinterStatus(printer);
 
                 case PrinterConnection.Serial:
-                    return GetSerialPrinterStatus(printer);
+                    return _hardwareSender.GetSerialPrinterStatus(printer);
 
                 case PrinterConnection.USB:
-                    return GetUsbPrinterStatus(printer);
+                    return _hardwareSender.GetUsbPrinterStatus(printer);
 
                 default:
                     _logger.LogWarning("Unknown printer connection type {Connection} for printer {PrinterName}",
@@ -506,12 +504,16 @@ public class ESCPOSPrinter : IPrinterService
         switch (printer.Connection)
         {
             case PrinterConnection.Network:
-                await SendViaNetworkAsync(printer, commands);
-                break;                case PrinterConnection.Serial:
-                    await SendViaSerialAsync(printer, commands);
-                    break;                case PrinterConnection.USB:
-                    await SendViaUsbAsync(printer, commands);
-                    break;
+                await _hardwareSender.SendViaNetworkAsync(printer, commands);
+                break;
+
+            case PrinterConnection.Serial:
+                await _hardwareSender.SendViaSerialAsync(printer, commands);
+                break;
+
+            case PrinterConnection.USB:
+                await _hardwareSender.SendViaUsbAsync(printer, commands);
+                break;
 
             default:
                 // Fallback: log commands for testing/development
@@ -521,160 +523,6 @@ public class ESCPOSPrinter : IPrinterService
                 await Task.Delay(100); // Simulate print delay
                 break;
         }
-    }
-
-    // ============================================================
-    // Network (TCP/IP)
-    // ============================================================
-
-    /// <summary>
-    /// Sends raw ESC/POS data to a network printer via TCP/IP socket.
-    /// Default port is 9100 (standard for Epson/Star thermal printers).
-    /// Uses Socket.ConnectAsync with CancellationToken for proper timeout cancellation.
-    /// </summary>
-    private async Task SendViaNetworkAsync(Printer printer, List<byte[]> commands)
-    {
-        if (string.IsNullOrWhiteSpace(printer.IpAddress))
-        {
-            throw new InvalidOperationException(
-                $"Network printer '{printer.Name}' has no IP address configured.");
-        }
-
-        var port = printer.Port > 0 ? printer.Port : 9100;
-        var address = System.Net.IPAddress.Parse(printer.IpAddress);
-        var endpoint = new System.Net.IPEndPoint(address, port);
-
-        using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-        socket.NoDelay = true;
-        socket.ReceiveTimeout = 5000;
-        socket.SendTimeout = 5000;
-
-        // Connect with configurable cancellation support
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_connectTimeoutSeconds));
-        try
-        {
-            await socket.ConnectAsync(endpoint, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw new TimeoutException(
-                $"Connection to printer '{printer.Name}' at {printer.IpAddress}:{port} timed out after {_connectTimeoutSeconds} seconds.");
-        }
-
-        if (!socket.Connected)
-        {
-            throw new InvalidOperationException(
-                $"Failed to connect to printer '{printer.Name}' at {printer.IpAddress}:{port}.");
-        }
-
-        // Write each command chunk sequentially using the network stream
-        using var networkStream = new NetworkStream(socket, ownsSocket: false);
-        foreach (var cmd in commands)
-        {
-            await networkStream.WriteAsync(cmd.AsMemory(0, cmd.Length)).ConfigureAwait(false);
-        }
-
-        await networkStream.FlushAsync().ConfigureAwait(false);
-
-        _logger.LogDebug(
-            "Successfully sent {CommandCount} commands ({TotalBytes} bytes) to network printer {PrinterName} at {Ip}:{Port}",
-            commands.Count, commands.Sum(c => c.Length), printer.Name, printer.IpAddress, port);
-    }
-
-    // ============================================================
-    // Serial (COM Port)
-    // ============================================================
-
-    /// <summary>
-    /// Sends raw ESC/POS data to a serial (COM) port printer asynchronously.
-    /// ConnectionString should specify the port (e.g., "COM1", "COM3").
-    /// Uses the printer's BaudRate property; defaults to 9600 (standard for ESC/POS thermal printers).
-    /// </summary>
-    private async Task SendViaSerialAsync(Printer printer, List<byte[]> commands)
-    {
-        var portName = printer.ConnectionString;
-        if (string.IsNullOrWhiteSpace(portName))
-        {
-            throw new InvalidOperationException(
-                $"Serial printer '{printer.Name}' has no COM port configured in ConnectionString.");
-        }
-
-        var baudRate = printer.BaudRate > 0 ? printer.BaudRate : 9600;
-        using var serialPort = new SerialPort(portName)
-        {
-            BaudRate = baudRate,
-            DataBits = 8,
-            Parity = Parity.None,
-            StopBits = StopBits.One,
-            Handshake = Handshake.None,
-            WriteTimeout = 5000,
-            ReadTimeout = 5000,
-            Encoding = Encoding.UTF8
-        };
-
-        // Open the port
-        serialPort.Open();
-
-        // Write each command chunk asynchronously via the base stream
-        var baseStream = serialPort.BaseStream;
-        foreach (var cmd in commands)
-        {
-            await baseStream.WriteAsync(cmd.AsMemory(0, cmd.Length)).ConfigureAwait(false);
-        }
-
-        await baseStream.FlushAsync().ConfigureAwait(false);
-
-        _logger.LogDebug(
-            "Successfully sent {CommandCount} commands ({TotalBytes} bytes) to serial printer {PrinterName} on {Port}",
-            commands.Count, commands.Sum(c => c.Length), printer.Name, portName);
-    }
-
-    // ============================================================
-    // USB (Windows Printer API / Virtual COM)
-    // ============================================================
-
-    /// <summary>
-    /// Sends raw ESC/POS data to a USB-connected printer.
-    /// Two methods:
-    /// 1. If ConnectionString starts with "COM" → treat as virtual COM port
-    /// 2. Otherwise → send via Windows Printer API (RawPrinterHelper)
-    ///    using the printer name (ConnectionString) or printer.Name as fallback.
-    /// </summary>
-    private async Task SendViaUsbAsync(Printer printer, List<byte[]> commands)
-    {
-        var connectionString = printer.ConnectionString;
-
-        // Method 1: Virtual COM port (e.g., USB CDC ACM)
-        if (!string.IsNullOrWhiteSpace(connectionString) &&
-            connectionString.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
-        {
-            await SendViaSerialAsync(printer, commands);
-            return;
-        }
-
-        // Method 2: Windows Printer API — send raw data to installed printer
-        var printerName = !string.IsNullOrWhiteSpace(connectionString)
-            ? connectionString
-            : printer.Name;
-
-        if (string.IsNullOrWhiteSpace(printerName))
-        {
-            throw new InvalidOperationException(
-                $"USB printer '{printer.Name}' has no printer name or ConnectionString configured.");
-        }
-
-        // Use RawPrinterHelper's concatenation helper
-        var success = RawPrinterHelper.SendRawDataChunks(printerName, commands, "POS Receipt");
-
-        if (!success)
-        {
-            throw new InvalidOperationException(
-                $"Failed to send data to USB printer '{printerName}' via Windows Printer API.");
-        }
-
-        _logger.LogDebug(
-            "Successfully sent {CommandCount} commands ({TotalBytes} bytes) to USB printer {PrinterName} via Windows API (target: {TargetName})",
-            commands.Count, commands.Sum(c => c.Length), printer.Name, printerName);
     }
 
     // ============================================================
@@ -712,136 +560,4 @@ public class ESCPOSPrinter : IPrinterService
         }
     }
 
-    // ============================================================
-    // Status Checks
-    // ============================================================
-
-    /// <summary>
-    /// Checks network printer availability by attempting a TCP socket connection.
-    /// Uses a synchronous Socket.Connect with timeout to avoid sync-over-async deadlock.
-    /// </summary>
-    private PrinterStatus GetNetworkPrinterStatus(Printer printer)
-    {
-        if (string.IsNullOrWhiteSpace(printer.IpAddress))
-            return PrinterStatus.Offline;
-
-        var port = printer.Port > 0 ? printer.Port : 9100;
-
-        try
-        {
-            // Use Socket with a synchronous poll/connect to avoid async deadlock risks
-            using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            socket.NoDelay = true;
-
-            // Run the connection attempt on a thread-pool thread to escape any
-            // single-threaded synchronization context (e.g., WinForms UI thread).
-            // Use async/await inside Task.Run so the socket connect is truly asynchronous
-            // and cannot deadlock on a WinForms synchronization context.
-            var result = Task.Run(async () =>
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                try
-                {
-                    var endpoint = new System.Net.IPEndPoint(
-                        System.Net.IPAddress.Parse(printer.IpAddress), port);
-                    await socket.ConnectAsync(endpoint, cts.Token).ConfigureAwait(false);
-                    return socket.Connected;
-                }
-                catch
-                {
-                    return false;
-                }
-            }).GetAwaiter().GetResult();
-
-            if (result)
-            {
-                _logger.LogInfo("Network printer {PrinterName} at {Ip}:{Port} is online",
-                    printer.Name, printer.IpAddress, port);
-                return PrinterStatus.Online;
-            }
-
-            _logger.LogWarning("Network printer {PrinterName} at {Ip}:{Port} is offline (timeout)",
-                printer.Name, printer.IpAddress, port);
-            return PrinterStatus.Offline;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Network printer {PrinterName} status check failed: {Message}",
-                printer.Name, ex.Message);
-            return PrinterStatus.Offline;
-        }
-    }
-
-    /// <summary>
-    /// Checks serial port printer availability by attempting to open the COM port.
-    /// </summary>
-    private PrinterStatus GetSerialPrinterStatus(Printer printer)
-    {
-        var portName = printer.ConnectionString;
-        if (string.IsNullOrWhiteSpace(portName))
-            return PrinterStatus.Offline;
-
-        try
-        {
-            using var serialPort = new SerialPort(portName);
-            serialPort.Open();
-            serialPort.Close();
-
-            _logger.LogInfo("Serial printer {PrinterName} on {Port} is online",
-                printer.Name, portName);
-            return PrinterStatus.Online;
-        }
-        catch (FileNotFoundException)
-        {
-            _logger.LogWarning("Serial port {Port} not found for printer {PrinterName}",
-                portName, printer.Name);
-            return PrinterStatus.Offline;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            _logger.LogWarning("Serial port {Port} for printer {PrinterName} is in use by another application",
-                portName, printer.Name);
-            return PrinterStatus.Error;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Serial printer {PrinterName} status check failed: {Message}",
-                printer.Name, ex.Message);
-            return PrinterStatus.Offline;
-        }
-    }
-
-    /// <summary>
-    /// Checks USB printer availability via Windows Printer API.
-    /// Falls back to serial port check if ConnectionString starts with "COM".
-    /// </summary>
-    private PrinterStatus GetUsbPrinterStatus(Printer printer)
-    {
-        var connectionString = printer.ConnectionString;
-
-        // Virtual COM port fallback
-        if (!string.IsNullOrWhiteSpace(connectionString) &&
-            connectionString.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetSerialPrinterStatus(printer);
-        }
-
-        var printerName = !string.IsNullOrWhiteSpace(connectionString)
-            ? connectionString
-            : printer.Name;
-
-        if (string.IsNullOrWhiteSpace(printerName))
-        {
-            return PrinterStatus.Offline;
-        }
-
-        if (RawPrinterHelper.CheckPrinterAvailable(printerName))
-        {
-            _logger.LogInfo("USB printer {PrinterName} is available via Windows API", printerName);
-            return PrinterStatus.Online;
-        }
-
-        _logger.LogWarning("USB printer {PrinterName} is not available via Windows API", printerName);
-        return PrinterStatus.Offline;
-    }
 }

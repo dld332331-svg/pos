@@ -1,9 +1,9 @@
 # Full Compliance Report — POS_EN.md vs Project Implementation
 
-**Date:** 2026-07-22 (Updated: v6)  
+**Date:** 2026-07-24 (Updated: v7)  
 **Target:** Unified Engineering Spec v2.0 (2135 lines)  
-**Build:** 0 warnings, 0 errors | **Tests:** 801/801 pass (Release mode ✅)  
-**Coverage Analysis:** POS.Application ~80%+ line — **0 uncovered methods remaining** (all 6 prior gaps closed)  
+**Build:** 0 warnings, 0 errors | **Tests:** 1265/1265 pass (Release mode ✅)  
+**Coverage Analysis:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%  
 **Compliance:** 39/39 sections (100%) — all gaps closed  
 
 **Changes in this session (session 4 — Unit Test Coverage Expansion + Quality Validation):**  
@@ -25,7 +25,19 @@
 - §14 Dashboard: `DashboardServiceTests` — +5 tests closing GetRecentTransactionsAsync coverage gap (count, payments, empty, all, no-payment)
 - §43 Testing: **All 6 previously-uncovered methods now exercised** — 0 uncovered methods remain across all 20 services
 - §44 Release: **Full suite re-validated at 801 tests** in Release mode with 0 warnings
-- §44 Changelog: `CHANGELOG.md` created documenting all sessions v1→v5**Changes made in session 3:**  
+- §44 Changelog: `CHANGELOG.md` created documenting all sessions v1→v5
+
+**Changes in this session (session 6 — Infrastructure & Reporting Coverage Expansion):**  
+- §30 Printers: `ESCPOSPrinter` — 4 feature-branch tests closing BuildItemLine truncation, RoundAmount, TipAmount/ReferenceNumber, kitchen ticket notes
+- §30 Printers: `IPrinterHardwareSender` interface extracted from `ESCPOSPrinter` — enables 100% branch-testable dispatch via mocks
+- §30 Printers: `RealPrinterHardwareSender` — 34 unit tests + 7 TCP loopback integration tests for guard clauses, exception paths, socket I/O
+- §36 Audit: `AuditLogger.LogAsync` — refactored DNS resolution into virtual method, added inner catch test (50%→100% branch)
+- §13 Auth: `PasswordHasherCore` — 13 guard clause tests for VerifyPassword (null/empty inputs, malformed hash, invalid iterations, invalid base64) — 50%→100% branch
+- §34 DB Integrity: `UnitOfWork` — 2 catch-block tests for SaveChangesAsync failure + CommitAsync rollback path — 71%→100% branch
+- §33 Backup: `VerifyBackupAsync` refactored onto `IDatabaseBackupExecutor` — now mockable; 4 new tests
+- §29 Reports: `SaleReportBuilder` — 3 empty-data tests (Category/User/Payment Method) — 70.9%→76.6% branch
+- §43 Testing: **Total test suite grew 801→1265** (+464 tests across infrastructure + reporting)
+- §44 Release: **Coverage improved to 84.6% line / 76.8% branch** — POS.Domain at 100% branch**Changes made in session 3:**  
 - §8 Directional Icons: `RtlIconHelper.GetPaginationArrow()` wired into AuditLogForm AND ProductListForm; verified no forms use FontAwesome directional icons requiring `GetIcon()` — gap closed
 - §12 Notifications: Full notification system wired end-to-end (interface → service → toast popups → MainShell bell/badge → event wiring)
 - §20 Multi-Unit of Measure: Migration created, UnitOfMeasure entity + FK on Product, 6 default units seeded, ProductForm unit ComboBox, PosTerminalForm unit column + quantity-with-unit dialog selector, **IUnitConversionService** interface + implementation, **SaleService** unit conversion pipeline for pricing + inventory, 18 new unit tests

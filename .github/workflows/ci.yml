@@ -1,81 +1,138 @@
-# ─────────────────────────────────────────────────────────────
-# POS System — CI Pipeline
-# Triggers: push/PR to master, manual dispatch
-# Steps: build → test (Release) with Coverlet coverage → badge
-# ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# POS System — CI/CD Pipeline
+# Triggers on push to main and pull requests targeting main.
+#
+# Steps:
+#   1. Checkout code
+#   2. Setup .NET 10 SDK
+#   3. Restore dependencies
+#   4. Build solution (Release mode, treat warnings as errors)
+#   5. Run tests with Coverlet code coverage (Debug mode)
+#   6. Generate Cobertura coverage report
+#   7. Enforce coverage thresholds (line >= 75%, branch >= 65%)
+#   8. Upload coverage report as build artifact
+# ──────────────────────────────────────────────────────────────────────────────
 
-name: POS CI
+name: CI/CD
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build-and-test:
     runs-on: windows-latest
 
     steps:
-      # ── Checkout ──────────────────────────────────────────
-      - name: Checkout source
+      # ── Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Setup .NET ────────────────────────────────────────
+      # ── Setup .NET 10 SDK ───────────────────────────────────────────────
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            10.0.x
 
-      # ── Restore ───────────────────────────────────────────
-      - name: Restore NuGet packages
-        run: dotnet restore POS.sln
+      # ── Restore ─────────────────────────────────────────────────────────
+      - name: Restore dependencies
+        run: dotnet restore
 
-      # ── Build + Test with Coverlet Coverage ──────────────
-      # NOTE: Coverlet MSBuild instrumentation requires the
-      # build to run WITH the /p:CollectCoverage=true property.
-      # Using --no-build would skip instrumentation.
-      - name: Run tests with Coverlet coverage
+      # ── Build (Release mode, verify zero warnings) ──────────────────────
+      - name: Build solution (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      # ── Build (Debug mode, for coverage instrumentation) ────────────────
+      - name: Build solution (Debug)
+        run: dotnet build --configuration Debug --no-restore
+
+      # ── Test with Coverage ──────────────────────────────────────────────
+      - name: Run tests with code coverage
         run: |
-          dotnet test POS.sln --configuration Release `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput=../coverage.xml `
-            --logger "console;verbosity=normal"
+          dotnet test POS.Tests/POS.Tests.csproj `
+            --configuration Debug `
+            --no-build `
+            --collect:"XPlat Code Coverage" `
+            --settings coverlet.runsettings `
+            --results-directory TestResults
 
-      # ── Upload Coverage to Codecov ────────────────────────
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: success()
-        with:
-          files: coverage.xml
-          flags: unittests
-          fail_ci_if_error: false
-          verbose: false
-
-      # ── Upload Test Results (always, for debugging) ──────
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: TestResults/
-          retention-days: 7
-
-      # ── Publish application (on push to master only) ─────
-      - name: Publish application
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      # ── Find latest Cobertura XML ───────────────────────────────────────
+      - name: Locate coverage report
+        id: coverage
+        shell: pwsh
         run: |
-          dotnet publish POS.Desktop/POS.Desktop.csproj `
-            --configuration Release `
-            --output publish/ `
-            --self-contained false
+          $latest = Get-ChildItem -Path TestResults -Recurse -Filter "coverage.cobertura.xml" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          $coverageFile = $latest.FullName
+          echo "Coverage file: $coverageFile"
+          echo "coverage-path=$coverageFile" >> $env:GITHUB_OUTPUT
 
-      - name: Upload build artifacts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      # ── Parse coverage and enforce thresholds ───────────────────────────
+      - name: Enforce coverage thresholds
+        shell: pwsh
+        run: |
+          $xml = [xml](Get-Content "${{ steps.coverage.outputs.coverage-path }}")
+          $root = $xml.coverage
+
+          $lineRate = [double]::Parse($root.'line-rate')
+          $branchRate = [double]::Parse($root.'branch-rate')
+          $linesCovered = $root.'lines-covered'
+          $linesValid = $root.'lines-valid'
+          $branchesCovered = $root.'branches-covered'
+          $branchesValid = $root.'branches-valid'
+
+          $linePct = [Math]::Round($lineRate * 100, 1)
+          $branchPct = [Math]::Round($branchRate * 100, 1)
+
+          Write-Host "========================================"
+          Write-Host "  COVERAGE REPORT"
+          Write-Host "========================================"
+          Write-Host "  Line:   $linePct% ($linesCovered / $linesValid)"
+          Write-Host "  Branch: $branchPct% ($branchesCovered / $branchesValid)"
+          Write-Host "========================================"
+
+          # Thresholds
+          $lineThreshold = 75.0
+          $branchThreshold = 65.0
+
+          $hasError = $false
+
+          if ($linePct -lt $lineThreshold) {
+            Write-Host "::error::Line coverage $linePct% is below threshold $lineThreshold%"
+            $hasError = $true
+          } else {
+            Write-Host "✅ Line coverage $linePct% meets threshold $lineThreshold%"
+          }
+
+          if ($branchPct -lt $branchThreshold) {
+            Write-Host "::error::Branch coverage $branchPct% is below threshold $branchThreshold%"
+            $hasError = $true
+          } else {
+            Write-Host "✅ Branch coverage $branchPct% meets threshold $branchThreshold%"
+          }
+
+          if ($hasError) {
+            exit 1
+          }
+
+      # ── Generate HTML Report ────────────────────────────────────────────
+      - name: Generate coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.3.9
+        with:
+          reports: ${{ steps.coverage.outputs.coverage-path }}
+          targetdir: coverage-report
+          reporttypes: Html;HtmlSummary;CsvSummary
+          title: "POS System Coverage"
+          verbosity: Warning
+
+      # ── Upload Coverage Report ──────────────────────────────────────────
+      - name: Upload coverage report artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pos-desktop-release
-          path: publish/
+          name: coverage-report
+          path: coverage-report/
           retention-days: 30

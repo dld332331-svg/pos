@@ -26,4 +26,10 @@ public interface IDatabaseBackupExecutor
     /// Restores the database to MULTI_USER mode after a restore operation.
     /// </summary>
     Task SetMultiUserModeAsync();
+
+    /// <summary>
+    /// Verifies the integrity of a backup file using RESTORE VERIFYONLY.
+    /// Returns true if the backup is valid, false otherwise.
+    /// </summary>
+    Task<bool> VerifyBackupAsync(string backupFilePath);
 }

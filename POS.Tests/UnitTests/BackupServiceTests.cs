@@ -128,6 +128,11 @@ public class BackupServiceTests : IDisposable
             })
             .Returns(Task.CompletedTask);
 
+        // Setup VerifyBackupAsync to return true (backup is valid)
+        executorMock
+            .Setup(e => e.VerifyBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
         // Act
         var result = await service.CreateBackupAsync();
 
@@ -140,6 +145,10 @@ public class BackupServiceTests : IDisposable
 
         // BackupDatabaseAsync was called
         executorMock.Verify(e => e.BackupDatabaseAsync(It.IsAny<string>()), Times.Once);
+        executorMock.Verify(e => e.VerifyBackupAsync(It.IsAny<string>()), Times.Once);
+
+        // Backup was verified
+        result.IsVerified.Should().BeTrue();
 
         // Backup record was saved
         unitOfWorkMock.Verify(u => u.BackupRecords.AddAsync(It.IsAny<BackupRecord>()), Times.Once);
@@ -207,6 +216,28 @@ public class BackupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateBackupAsync_VerifyFails_IsVerifiedIsFalse()
+    {
+        // Arrange — executor.BackupDatabaseAsync succeeds, VerifyBackupAsync returns false
+        var (service, unitOfWorkMock, executorMock, _) = BuildServiceWithMocks();
+
+        executorMock
+            .Setup(e => e.BackupDatabaseAsync(It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+        executorMock
+            .Setup(e => e.VerifyBackupAsync(It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await service.CreateBackupAsync();
+
+        // Assert — IsVerified is false when verification fails
+        result.IsVerified.Should().BeFalse();
+        executorMock.Verify(e => e.VerifyBackupAsync(It.IsAny<string>()), Times.Once);
+        unitOfWorkMock.Verify(u => u.BackupRecords.AddAsync(It.IsAny<BackupRecord>()), Times.Once);
+    }
+
+    [Fact]
     public async Task CreateBackupAsync_FileDoesNotExist_SizeIsZero()
     {
         // Arrange — executor succeeds but no file is actually created
@@ -221,6 +252,7 @@ public class BackupServiceTests : IDisposable
 
         // Assert — file size is 0 since no backup file was actually written
         result.FileSize.Should().Be(0);
+        result.IsVerified.Should().BeFalse(); // default mock returns false
 
         // Record was still saved
         unitOfWorkMock.Verify(u => u.BackupRecords.AddAsync(It.IsAny<BackupRecord>()), Times.Once);
