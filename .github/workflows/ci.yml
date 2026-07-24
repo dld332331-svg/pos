@@ -46,13 +46,13 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      # ── Restore with NuGet audit suppressed (preview SDK audit db mismatch) ─
+      # ── Restore (direct-mode NuGet audit avoids preview SDK transitive false positives) ─
       - name: Restore dependencies
-        run: dotnet restore -p:NuGetAudit=false
+        run: dotnet restore -p:NuGetAuditMode=direct
 
       # ── Build (Release mode, verify zero warnings) ──────────────────────
       - name: Build solution (Release)
-        run: dotnet build --configuration Release --no-restore -p:NuGetAudit=false
+        run: dotnet build --configuration Release --no-restore -p:NuGetAuditMode=direct
 
       # ── Build (Debug mode, for coverage instrumentation) ────────────────
       - name: Build solution (Debug)
