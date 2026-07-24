@@ -5,8 +5,7 @@
 **Target:** JOD currency (3 decimal places), Arabic RTL, on-premises Windows Desktop  
 **Build:** 0 warnings, 0 errors | **Tests:** 1316/1316 pass (0 failures, 0 skipped)  
 **Release Mode Validation:** ✅ Full test suite passes in Release configuration with 0 warnings  
-**Coverage:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%  
-> \* Coverage from last valid instrumentation run — local WDAC policy prevents re-run. Actual coverage is expected slightly higher (+51 tests including MapSaleItemToDto and retention policy tests).
+**Coverage:** Overall **85.1% line / 80.3% branch** — POS.Application 86.5%/88.9%, POS.Domain 79.6%/100%, POS.Infrastructure 84.3%/55.4%, POS.Reporting 99.6%/93.8%
 
 ---
 
@@ -15,8 +14,9 @@
 | Requirement | Status | Evidence |
 |---|---|---|
 | GitHub Actions workflow configured | ✅ PASS | `.github/workflows/ci.yml` — triggered on push/PR to `main` |
-| .NET 10 preview SDK resolved | ✅ PASS | `setup-dotnet@v4` with `include-prerelease: true` finds preview SDK |
+| .NET 10 preview SDK resolved | ✅ PASS | `setup-dotnet@v4` with `dotnet-quality: preview` finds preview SDK (3 attempts: `quality: preview` ❌, `include-prerelease: true` ❌, `dotnet-quality: preview` ✅) |
 | NuGet package caching | ✅ PASS | `actions/cache@v4` with `**/*.csproj`/`**/*.props`/`**/*.targets` hash key |
+| NuGet audit (preview SDK safe mode) | ✅ PASS | `NuGetAuditMode=direct` suppresses unstable transitive package audit on preview SDK, keeps direct dependency scanning |
 | Two-phase build (Release + Debug) | ✅ PASS | Release mode (zero-warnings) → Debug mode (coverage instrumentation) |
 | Release mode zero-warnings enforcement | ✅ PASS | `TreatWarningsAsErrors` enabled; Release build step verifies compliance |
 | Test execution with Coverlet coverage | ✅ PASS | `--collect:"XPlat Code Coverage"` with `coverlet.runsettings` |
@@ -387,7 +387,7 @@ All 10 interfaces from spec exist: IAuditService, IAuthService, IBackupService, 
 - ℹ️ `ExcelReportExporter`/`PdfReportExporter` — QuestPDF/ClosedXML file I/O
 
 **Key achievements:**
-- ✅ **Overall branch coverage: 84.6% line / 76.8% branch** (up from ~75% branch)
+- ✅ **Overall branch coverage: 85.1% line / 80.3% branch** (up from ~76.8% branch)
 - ✅ **POS.Domain: 100% branch coverage**
 - ✅ **POS.Reporting: 76.6% branch** (up from 70.9%)
 - ✅ **All targeted Infrastructure classes now at 100% branch** (ESCPOSPrinter, UnitOfWork, AuditLogger, PasswordHasher)

@@ -3,7 +3,7 @@
 **Date:** 2026-07-24 (Updated: v7)  
 **Target:** Unified Engineering Spec v2.0 (2135 lines)  
 **Build:** 0 warnings, 0 errors | **Tests:** 1316/1316 pass (Release mode ✅)  
-**Coverage Analysis:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%  
+**Coverage Analysis:** Overall **85.1% line / 80.3% branch** — POS.Application 86.5%/88.9%, POS.Domain 79.6%/100%, POS.Infrastructure 84.3%/55.4%, POS.Reporting 99.6%/93.8%  
 **Compliance:** 39/39 sections (100%) — all gaps closed  
 
 **Changes in this session (session 7 — CI/CD Pipeline & Test Infrastructure):**  
@@ -15,9 +15,11 @@
 - §43 Testing: **MapSaleItemToDto direct tests** — method made `internal` with `InternalsVisibleTo`; 5 tests cover all null-coalescing paths (8.3%→100% branch)
 - §29 Reports: **ReportExporter wrapper tests** — 7 delegation tests for PdfReportExporter + ExcelReportExporter
 - §33 Backup: **Retention policy branch gap closure** — 4 tests for `EnforceRetentionPolicyAsync` (count threshold, age threshold, outer catch, skip) — 37.5%→100% branch
-- §44 Release: **CI fix applied** — removed invalid `quality: preview` param, added valid `include-prerelease: true` for .NET 10 preview SDK resolution
+- §44 Release: **CI SDK fix (3 attempts):** `quality: preview` ❌ (wrong name) → `include-prerelease: true` ❌ (wrong action) → `dotnet-quality: preview` ✅ (correct — SDK setup now passes)
+- §44 Release: **CI build fix:** `NuGetAuditMode=all` caused Build (Release) failure on preview SDK runner; fixed with `-p:NuGetAuditMode=direct` on restore/build commands
 - §43 Testing: **Total test suite grew 1265→1316** (+51 tests)
 - §44 Release: **Repository pushed to GitHub** `github.com/dld332331-svg/pos`
+- §44 Release: **Overall branch coverage crossed 80%** (85.1% line / 80.3% branch) — Reporting jump to 93.8% from exporter tests
 
 **Changes in this session (session 6 — Infrastructure & Reporting Coverage Expansion):**  
 - §30 Printers: `ESCPOSPrinter` — 4 feature-branch tests closing BuildItemLine truncation, RoundAmount, TipAmount/ReferenceNumber, kitchen ticket notes
