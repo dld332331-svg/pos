@@ -6,11 +6,11 @@
 **Specification:** POS_EN.md — Unified Engineering Spec v2.0 (2135 lines)  
 **Current build:** 0 errors, 0 warnings  
 **Current tests:** **1316/1316 pass (Release mode ✅)**  
-**Coverage:** Overall **84.6% line / 76.8% branch** (Coverlet)  
-  - POS.Application: 86.3% line / 87.2% branch  
+**Coverage:** Overall **85.1% line / 80.3% branch** (Coverlet, 1,316 tests)  
+  - POS.Application: 86.5% line / 88.9% branch  
   - POS.Domain: 79.6% line / **100.0% branch**  
-  - POS.Infrastructure: 84.2% line / 54.6% branch (filtered: ~75%)  
-  - POS.Reporting: 89.9% line / 76.6% branch  
+  - POS.Infrastructure: 84.3% line / 55.4% branch (filtered: ~75%)  
+  - POS.Reporting: 99.6% line / 93.8% branch  
 
 ---
 
@@ -23,7 +23,7 @@
 
 #### CI/CD Pipeline (`.github/workflows/ci.yml`)
 - **GitHub Actions workflow** triggered on push/PR to `main`
-- **.NET 10 preview SDK** via `setup-dotnet@v4` with `include-prerelease: true` (fixed: was `quality: preview` — invalid input causing immediate exit code 1)
+- **.NET 10 preview SDK** via `setup-dotnet@v4` with `dotnet-quality: preview` (valid input enabling preview SDK matching)
 - **NuGet package caching** via `actions/cache@v4` — keyed on `**/*.csproj`, `**/*.props`, `**/*.targets` hashes
 - **Two-phase build** — Release mode (zero-warnings policy) then Debug mode (coverage instrumentation)
 - **Release mode validation** — `TreatWarningsAsErrors` ensures zero warnings before merge
@@ -55,10 +55,12 @@
 - `POS.Application/Properties/AssemblyInfo.cs` created with `[assembly: InternalsVisibleTo("POS.Tests")]`
 
 ### Fixed
-- **CI root cause**: `quality: preview` is NOT a valid input for `setup-dotnet@v4` — caused immediate exit code 1 on all 9 previous CI runs
-  - Removed invalid `quality` param
-  - Added `include-prerelease: true` (valid input enabling preview SDK matching)
-  - All 3 previous SDK-related commits (`fb0e84d`, `d6ba490`, `d3382f5`) had the same broken `quality: preview` parameter
+- **CI root cause**: `setup-dotnet@v4` SDK parameter was wrong — the journey spanned 3 incorrect attempts before the final fix:
+  1. `quality: preview` ❌ — **wrong parameter name** (missing `dotnet-` prefix), caused "Unexpected input 'quality'" across all 9 earlier runs
+  2. `include-prerelease: true` ❌ — **wrong action** (that's a `setup-node` parameter, not `setup-dotnet`), caused "Unexpected input 'include-prerelease'"
+  3. `dotnet-quality: preview` ✅ — **correct parameter**, SDK setup now passes
+- **Build fix**: After SDK setup passed, `Build (Release)` still failed due to `NuGetAuditMode=all` flagging a transitive vulnerability in the CI runner's different audit database
+  - Fixed by overriding with `-p:NuGetAuditMode=direct` on restore and build commands (keeps security audit for direct deps, skips unstable transitive audit on preview SDK)
 
 ### Infrastructure
 - GitHub repository pushed to `github.com/dld332331-svg/pos`
