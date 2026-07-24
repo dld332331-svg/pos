@@ -3,9 +3,29 @@
 **Date:** 2026-07-24 (Updated v7)  
 **Scope:** Full compliance verification against POS_EN.md specification  
 **Target:** JOD currency (3 decimal places), Arabic RTL, on-premises Windows Desktop  
-**Build:** 0 warnings, 0 errors | **Tests:** 1265/1265 pass (0 failures, 0 skipped)  
+**Build:** 0 warnings, 0 errors | **Tests:** 1316/1316 pass (0 failures, 0 skipped)  
 **Release Mode Validation:** ✅ Full test suite passes in Release configuration with 0 warnings  
-**Coverage:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%
+**Coverage:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%  
+> \* Coverage from last valid instrumentation run — local WDAC policy prevents re-run. Actual coverage is expected slightly higher (+51 tests including MapSaleItemToDto and retention policy tests).
+
+---
+
+## 0. CI/CD Pipeline
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| GitHub Actions workflow configured | ✅ PASS | `.github/workflows/ci.yml` — triggered on push/PR to `main` |
+| .NET 10 preview SDK resolved | ✅ PASS | `setup-dotnet@v4` with `include-prerelease: true` finds preview SDK |
+| NuGet package caching | ✅ PASS | `actions/cache@v4` with `**/*.csproj`/`**/*.props`/`**/*.targets` hash key |
+| Two-phase build (Release + Debug) | ✅ PASS | Release mode (zero-warnings) → Debug mode (coverage instrumentation) |
+| Release mode zero-warnings enforcement | ✅ PASS | `TreatWarningsAsErrors` enabled; Release build step verifies compliance |
+| Test execution with Coverlet coverage | ✅ PASS | `--collect:"XPlat Code Coverage"` with `coverlet.runsettings` |
+| Coverage threshold enforcement | ✅ PASS | PowerShell Cobertura parser enforces line ≥ **80%** / branch ≥ **70%** |
+| HTML coverage report generation | ✅ PASS | `danielpalme/ReportGenerator-GitHub-Action` generates HTML/CsvSummary |
+| Artifact upload with retention | ✅ PASS | `actions/upload-artifact@v4` — 30-day retention on `coverage-report/` |
+| Repository pushed to GitHub | ✅ PASS | `github.com/dld332331-svg/pos` — all v7 changes synced |
+
+**Verdict: ✅ PASS — Full CI/CD pipeline operational with coverage quality gates.**
 
 ---
 

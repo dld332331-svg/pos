@@ -2,30 +2,22 @@
 
 **Date:** 2026-07-24 (Updated: v7)  
 **Target:** Unified Engineering Spec v2.0 (2135 lines)  
-**Build:** 0 warnings, 0 errors | **Tests:** 1265/1265 pass (Release mode ✅)  
+**Build:** 0 warnings, 0 errors | **Tests:** 1316/1316 pass (Release mode ✅)  
 **Coverage Analysis:** Overall 84.6% line / 76.8% branch — POS.Application 86.3%/87.2%, POS.Domain 79.6%/100%, POS.Infrastructure 84.2%/54.6%, POS.Reporting 89.9%/76.6%  
 **Compliance:** 39/39 sections (100%) — all gaps closed  
 
-**Changes in this session (session 4 — Unit Test Coverage Expansion + Quality Validation):**  
-- §16 Promotions: `PromotionServiceTests` — 39 tests covering all 4 promotion types, eligibility, application, edge cases
-- §24 Purchase Orders: `PurchaseOrderServiceTests` (15 tests) + `PurchaseOrderCalculatorTests` (17 scenarios) — PO state machine, receive delegation, cost calc, transitions
-- §23 Recipes: `RecipeServiceTests` — 18 tests for recipe CRUD, ingredient costing, missing item handling
-- §19 Kitchen Display: `KitchenOrderServiceTests` — 22 tests for order filtering, priority, station mapping, order type display
-- §24 Suppliers: `SupplierServiceTests` — 16 tests for CRUD, search filtering, purchase order history
-- §30 Printers: `PrinterManagementServiceCrudTests` — 26 tests (Add/Update/Delete, stations, test/cash drawer)
-- §30 Printers: Fixed `UpdatePrinterAsync` — added `Enum.TryParse<PrinterRole>` to close AssignedRole update gap
-- §43 Testing: `ServiceIntegrationTests` — 18 end-to-end EF Core InMemory tests across all 7 services
-- §44 Release: Full Release mode validation — 782 tests pass with 0 warnings
-- §43 Testing: Coverlet code coverage analysis — POS.Application 79.32% line, POS.Domain 69.92% line; 6 uncovered methods documented for future expansion
-- **All 7 previously-untested application services now have unit test coverage (587→782, +195 tests)**
-
-**Changes in this session (session 5 — Final Coverage Gap Closure):**  
-- §13 Auth: `AuthServiceTests` — +11 tests closing 4 uncovered methods (CheckDatabaseConnectionAsync, LogoutAsync, GetUserPermissionsAsync, HasPermissionAsync)
-- §25 Customers: `CustomerServiceTests` — +3 tests closing DeleteCustomerAsync coverage gap (success, not found, idempotent)
-- §14 Dashboard: `DashboardServiceTests` — +5 tests closing GetRecentTransactionsAsync coverage gap (count, payments, empty, all, no-payment)
-- §43 Testing: **All 6 previously-uncovered methods now exercised** — 0 uncovered methods remain across all 20 services
-- §44 Release: **Full suite re-validated at 801 tests** in Release mode with 0 warnings
-- §44 Changelog: `CHANGELOG.md` created documenting all sessions v1→v5
+**Changes in this session (session 7 — CI/CD Pipeline & Test Infrastructure):**  
+- §44 Release: **GitHub Actions CI/CD pipeline** configured in `.github/workflows/ci.yml`
+- §44 Release: **NuGet package caching** via `actions/cache@v4` for faster restore on subsequent runs
+- §44 Release: **Coverage thresholds** enforced at ≥80% line / ≥70% branch — CI blocks PRs below these
+- §44 Release: **Two-phase build** — Release (zero-warnings) then Debug (coverage instrumentation)
+- §44 Release: **HTML coverage report** generated via ReportGenerator and uploaded as artifact (30-day retention)
+- §43 Testing: **MapSaleItemToDto direct tests** — method made `internal` with `InternalsVisibleTo`; 5 tests cover all null-coalescing paths (8.3%→100% branch)
+- §29 Reports: **ReportExporter wrapper tests** — 7 delegation tests for PdfReportExporter + ExcelReportExporter
+- §33 Backup: **Retention policy branch gap closure** — 4 tests for `EnforceRetentionPolicyAsync` (count threshold, age threshold, outer catch, skip) — 37.5%→100% branch
+- §44 Release: **CI fix applied** — removed invalid `quality: preview` param, added valid `include-prerelease: true` for .NET 10 preview SDK resolution
+- §43 Testing: **Total test suite grew 1265→1316** (+51 tests)
+- §44 Release: **Repository pushed to GitHub** `github.com/dld332331-svg/pos`
 
 **Changes in this session (session 6 — Infrastructure & Reporting Coverage Expansion):**  
 - §30 Printers: `ESCPOSPrinter` — 4 feature-branch tests closing BuildItemLine truncation, RoundAmount, TipAmount/ReferenceNumber, kitchen ticket notes
