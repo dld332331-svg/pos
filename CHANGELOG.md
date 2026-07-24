@@ -360,13 +360,13 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | **All 20 services** | 13/20 | 13/20 | 13/20 | **20/20** | **20/20** | **20/20** | **20/20** |
 | | | | | | | | |
 | **POS.Domain branch** | — | — | — | — | 69.9% | **100.0%** | **100.0%** |
-| **POS.Application branch** | — | — | — | 83.2% | 83.2% | **87.2%** | **87.2%*** |
-| **POS.Reporting branch** | — | — | — | — | 70.9% | **76.6%** | **76.6%** |
-| **POS.Infrastructure branch** | — | — | — | — | ~50% | **54.6%** | **54.6%** |
-| **Overall branch coverage** | — | — | — | ~73% | 75.5% | **76.8%** | **76.8%** |
-| **Overall line coverage** | — | — | — | ~82% | 84.5% | **84.6%** | **84.6%** |
+| **POS.Application branch** | — | — | — | 83.2% | 83.2% | **87.2%** | **88.9%*** |
+| **POS.Reporting branch** | — | — | — | — | 70.9% | **76.6%** | **93.8%** |
+| **POS.Infrastructure branch** | — | — | — | — | ~50% | **54.6%** | **55.4%** |
+| **Overall branch coverage** | — | — | — | ~73% | 75.5% | **76.8%** | **80.3%** |
+| **Overall line coverage** | — | — | — | ~82% | 84.5% | **84.6%** | **85.1%** |
 
-> \* v7 POS.Application coverage estimate: 87.2% (unchanged from v6 — no successful instrumentation run completed after MapSaleItemToDto changes)
+> \* v7 POS.Application branch coverage: 88.9% (fresh instrumentation run completed). POS.Reporting jump from 76.6% to 93.8% due to ReportExporter and SaleReportBuilder branch gap tests added in v7.
 
 ---
 
@@ -418,7 +418,8 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | CI/CD Pipeline (GitHub Actions) | v7 | ✅ | — |
 | NuGet Package Caching | v7 | ✅ | — |
 | Coverage Thresholds (80%/70%) | v7 | ✅ | — |
-| CI Fix (quality→include-prerelease) | v7 | ✅ | — |
+| Dotnet-Quality SDK Fix (3 attempts) | v7 | ✅ | — |
+| NuGetAuditMode=direct (build fix) | v7 | ✅ | — |
 | InternalsVisibleTo (Direct Testing) | v7 | ✅ | — |
 | MapSaleItemToDto Direct Tests | v7 | ✅ | 5 |
 | ReportExporter Wrapper Tests | v7 | ✅ | 7 |
@@ -436,8 +437,8 @@ v7 (CI/CD Pipeline & Test Infrastructure)
 | **Build Warnings** | 0 | 0 | 0 | 0 | **0** | **0** | **0** |
 | **Release Mode** | — | — | — | ✅ | **✅** | **✅** | **✅** |
 | **Compliance Sections** | — | — | — | 39/39 | **39/39** | **39/39** | **39/39** |
-| **Line Coverage** | — | — | — | ~82% | **84.5%** | **84.6%** | **84.6%** |
-| **Branch Coverage** | — | — | — | ~73% | **75.5%** | **76.8%** | **76.8%** |
+| **Line Coverage** | — | — | — | ~82% | **84.5%** | **84.6%** | **85.1%** |
+| **Branch Coverage** | — | — | — | ~73% | **75.5%** | **76.8%** | **80.3%** |
 | **Source Files** | ~280 | ~300 | ~315 | ~318 | **~320** | **~335** | **~335** |
 | **Migrations** | 1 | 4 | 5 | 5 | **5** | **5** | **5** |
 | **Screen Specs** | 25 | 25 | 26 | 26 | **26** | **26** | **26** |
