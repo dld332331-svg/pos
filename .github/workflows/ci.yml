@@ -9,7 +9,7 @@
 #   4. Build solution (Release mode, treat warnings as errors)
 #   5. Run tests with Coverlet code coverage (Debug mode)
 #   6. Generate Cobertura coverage report
-#   7. Enforce coverage thresholds (line >= 75%, branch >= 65%)
+#   7. Enforce coverage thresholds (line >= 80%, branch >= 70%)
 #   8. Upload coverage report as build artifact
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -99,8 +99,8 @@ jobs:
           Write-Host "========================================"
 
           # Thresholds
-          $lineThreshold = 75.0
-          $branchThreshold = 65.0
+          $lineThreshold = 80.0
+          $branchThreshold = 70.0
 
           $hasError = $false
 
