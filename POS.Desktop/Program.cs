@@ -5,11 +5,11 @@ using POS.Desktop.Forms;
 using POS.Desktop.Navigation;
 using POS.Desktop.Services;
 using POS.Domain.Interfaces;
+using POS.Application.DTOs;
 using POS.Application.Services;
 using POS.Application.DependencyInjection;
 using POS.Infrastructure.DependencyInjection;
 using POS.Reporting.DependencyInjection;
-using Application = System.Windows.Forms.Application;
 
 namespace POS.Desktop;
 
@@ -158,55 +158,55 @@ static class Program
             LogException(ex);
         }
 
-        try
-        {
-            // Show the login form as the main application form
-            var loginForm = serviceProvider.GetRequiredService<LoginForm>();
+        // ====== Run application ======
+        // Login form is shown as a MODAL DIALOG before the main message pump
+        // starts. On success, MainShell is shown via Application.Run (proper
+        // top-level message pump). When the user logs out, the while-loop
+        // re-shows the login dialog without restarting the process.
+        //
+        // This avoids the orphaned-modal-pump problem that previously caused
+        // blank windows, missing taskbar entries, and uncloseable windows.
+        bool shouldRestart = false;
 
-            // Subscribe to successful login to transition to MainShell
-            loginForm.LoginSuccessful += (sender, args) =>
+        while (true)
+        {
+            LoginResponse? loginResponse = null;
+
+            try
             {
-                // Login was successful - the LoginForm will handle closing itself
-                // and the MainShell will be launched
+                // ── Show login dialog (modal, before main pump) ──
+                loginResponse = ShowLoginDialog(serviceProvider);
+                if (loginResponse == null)
+                    break;
+
+                // ── Create MainShell ──
                 var mainShell = serviceProvider.GetRequiredService<MainShell>();
 
-                // Wire up navigation events
+                // Wire navigation events
                 mainShell.OnNavigateToDashboard += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<DashboardForm>());
-
                 mainShell.OnNavigateToPOS += (s, e) =>
                     mainShell.NavigateToPOS(serviceProvider);
-
                 mainShell.OnNavigateToProducts += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<ProductListForm>());
-
                 mainShell.OnNavigateToInventory += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<InventoryForm>());
-
                 mainShell.OnNavigateToReports += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<ReportForm>());
-
                 mainShell.OnNavigateToUsers += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<UserManagementForm>());
-
                 mainShell.OnNavigateToSettings += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<SettingsForm>());
-
                 mainShell.OnNavigateToPrinters += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<PrinterManagementForm>());
-
                 mainShell.OnNavigateToAudit += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<AuditLogForm>());
-
                 mainShell.OnNavigateToBackup += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<BackupForm>());
-
                 mainShell.OnNavigateToPromotions += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<PromotionsListForm>());
-
                 mainShell.OnNavigateToTables += (s, e) =>
                     mainShell.NavigateTo(serviceProvider.GetRequiredService<TableMapForm>());
-
                 mainShell.OnNavigateToReturns += (s, e) =>
                 {
                     var returnForm = serviceProvider.GetRequiredService<ReturnForm>();
@@ -215,55 +215,76 @@ static class Program
 
                 mainShell.OnLogout += (s, e) =>
                 {
+                    shouldRestart = true;
                     mainShell.Close();
-                    // Restart application with login form
-                    System.Windows.Forms.Application.Restart();
                 };
 
                 mainShell.OnLock += (s, e) =>
                 {
-                    // Show login overlay or lock screen
                     var lockForm = serviceProvider.GetRequiredService<LoginForm>();
                     lockForm.ShowDialog(mainShell);
-                    // Refresh user info and shift info after unlock
-                    RefreshShiftInfo(mainShell, serviceProvider, args.UserId);
+                    RefreshShiftInfo(mainShell, serviceProvider, AppServiceProvider.CurrentUserId);
                 };
 
-                // Store user context globally and apply permission-based nav filtering
-                AppServiceProvider.CurrentUserId = args.UserId;
-                AppServiceProvider.CurrentUserRole = args.Role;
-                AppServiceProvider.CurrentUserDisplayName = args.DisplayName;
+                // Set user context
+                AppServiceProvider.CurrentUserId = loginResponse.UserId;
+                AppServiceProvider.CurrentUserRole = loginResponse.Role;
+                AppServiceProvider.CurrentUserDisplayName = loginResponse.DisplayName;
+                var permissions = loginResponse.Permissions ?? new List<string>();
+                mainShell.SetUserContext(loginResponse.UserId, loginResponse.DisplayName, loginResponse.Role, permissions);
+                RefreshShiftInfo(mainShell, serviceProvider, loginResponse.UserId);
 
-                // Use the permissions provided by the authentication service; for legacy or
-                // fallback paths, an empty list still means "all permissions" for Admin.
-                var permissions = args.Permissions ?? new List<string>();
-                mainShell.SetUserContext(args.UserId, args.DisplayName, args.Role, permissions);
-                RefreshShiftInfo(mainShell, serviceProvider, args.UserId);
+                // Load the dashboard as the initial content.
                 mainShell.NavigateTo(serviceProvider.GetRequiredService<DashboardForm>());
 
-                // Run MainShell as the new main form
+                // ── Run MainShell as the top-level application window ──
+                // Application.Run creates the proper main message pump, ensuring:
+                //   - The window appears in the taskbar
+                //   - Close/minimize/restore work normally
+                //   - All child controls paint correctly
+                //   - DevExpress XtraForm skinning works correctly
                 System.Windows.Forms.Application.Run(mainShell);
-            };
+            }
+            catch (Exception ex)
+            {
+                LogException(ex);
+                ShowArabicError(
+                    "خطأ في تشغيل البرنامج",
+                    $"حدث خطأ غير متوقع. يرجى إعادة تشغيل البرنامج.",
+                    ex
+                );
+                break;
+            }
 
-            // Start with login form
-            System.Windows.Forms.Application.Run(loginForm);
+            if (!shouldRestart) break;
+
+            // Logout requested — loop back to login screen
+            shouldRestart = false;
         }
-        catch (Exception ex)
+
+        // Cleanup
+        Log.CloseAndFlush();
+        (serviceProvider as IDisposable)?.Dispose();
+    }
+
+    /// <summary>
+    /// Shows the login form as a modal dialog. Returns the LoginResponse on
+    /// successful authentication, or null if the user cancelled or login failed.
+    /// </summary>
+    internal static LoginResponse? ShowLoginDialog(IServiceProvider serviceProvider)
+    {
+        using var loginForm = serviceProvider.GetRequiredService<LoginForm>();
+        LoginResponse? response = null;
+
+        loginForm.LoginSuccessful += (sender, args) =>
         {
-            LogException(ex);
-            ShowArabicError(
-                "خطأ في تشغيل البرنامج",
-                $"لم يتمكن البرنامج من البدء بشكل صحيح.\n\n" +
-                $"يرجى التواصل مع الدعم الفني.",
-                ex
-            );
-        }
-        finally
-        {
-            // Cleanup Serilog
-            Log.CloseAndFlush();
-            (serviceProvider as IDisposable)?.Dispose();
-        }
+            response = args;
+            loginForm.DialogResult = DialogResult.OK;
+            loginForm.Close();
+        };
+
+        var result = loginForm.ShowDialog();
+        return result == DialogResult.OK ? response : null;
     }
 
     /// <summary>
